@@ -244,6 +244,10 @@ def load_game_world():
     player.attack = stats.get('attack', player.attack)
     player.defense = stats.get('defense', player.defense)
     player.character_class = class_name
+    abilities = class_def.get('abilities', [])
+    player.load_skills(abilities)
+    for i, skill in enumerate(player.skills):
+        hotbar.assign(i, skill)
     quest_manager = QuestManager()
     quest_manager.load_from_dict(current_user.get('quests', {}))
     all_sprites.add(player)
@@ -326,7 +330,7 @@ while True:
                     el.handle_event(event)
         elif game_state == 'playing':
             chat_ui.handle_event(event, lambda text: send_chat_message(text))
-            hotbar.handle_event(event)
+            hotbar.handle_event(event, player, enemy_sprites)
             shop_ui.handle_event(event, player)
             bank_ui.handle_event(event, player)
             crafting_ui.handle_event(event, player)

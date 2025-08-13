@@ -2,6 +2,7 @@
 import pygame
 from settings import *
 from item import ITEM_DEFS, Item
+from skills import create_skill
 
 
 class Party:
@@ -53,6 +54,8 @@ class Player(pygame.sprite.Sprite):
         self.direction = "right"
         self.hit_timer = 0
         self.damage_cooldown = 0
+        self.skills = []
+        self.active_buffs = []
         try:
             self.attack_sound = pygame.mixer.Sound("sounds/attack.wav")
             self.hit_sound = pygame.mixer.Sound("sounds/hit.wav")
@@ -184,3 +187,21 @@ class Player(pygame.sprite.Sprite):
         if self.hit_timer > 0:
             self.hit_timer -= 1
             self.image.fill((255, 0, 0), special_flags=pygame.BLEND_RGBA_ADD)
+        for skill in self.skills:
+            skill.update()
+        for buff in self.active_buffs[:]:
+            buff['timer'] -= 1
+            if buff['timer'] <= 0:
+                setattr(self, buff['stat'], getattr(self, buff['stat']) - buff['power'])
+                self.active_buffs.remove(buff)
+
+    def load_skills(self, ability_names):
+        """Instantiate skills based on class abilities."""
+        for name in ability_names:
+            skill = create_skill(name)
+            if skill:
+                self.skills.append(skill)
+
+    def use_skill(self, index, enemies):
+        if 0 <= index < len(self.skills):
+            self.skills[index].use(self, enemies)
