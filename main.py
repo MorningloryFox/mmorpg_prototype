@@ -2,10 +2,16 @@
 import pygame
 import sys
 import random
+import json
 
 from settings import *
 from player import Player
 from resource import Resource
+from quest import QuestManager, Quest
+import events
+
+with open('classes.json', 'r') as f:
+    CLASS_DEFS = json.load(f)
 from wall import Wall
 from camera import Camera
 from enemy import Enemy
@@ -32,6 +38,7 @@ net_client = None
 other_players = {}
 chat_ui = Chat()
 hotbar = Hotbar()
+quest_manager = QuestManager()
 
 # --- Load UI Assets ---
 login_panel_img = pygame.image.load("data/Wenrexa/Wenrexa Interface UI KIT #4/PNG/Panel02.png").convert_alpha()
@@ -58,9 +65,10 @@ login_elements = [login_title, username_input, password_input, login_button, cre
 create_account_title = Label(panel_x + 200, panel_y + 80, "Create Account", font_size=40)
 new_username_input = InputBox(panel_x + 100, panel_y + 150, 200, 40)
 new_password_input = InputBox(panel_x + 100, panel_y + 210, 200, 40, is_password=True)
-create_button = Button(panel_x + 125, panel_y + 280, 150, 50, 'Create', lambda: create_account(), image=button_img)
+class_input = InputBox(panel_x + 100, panel_y + 270, 200, 40)
+create_button = Button(panel_x + 125, panel_y + 330, 150, 50, 'Create', lambda: create_account(), image=button_img)
 back_to_login_button = Button(panel_x + 100, panel_y + 340, 200, 50, 'Back to Login', lambda: set_state('login'), image=button_img)
-create_account_elements = [create_account_title, new_username_input, new_password_input, create_button, back_to_login_button]
+create_account_elements = [create_account_title, new_username_input, new_password_input, class_input, create_button, back_to_login_button]
 
 # Options Menu
 options_title = Label(panel_x + 200, panel_y + 80, "Options", font_size=50)
@@ -99,7 +107,13 @@ def login():
         return
 
     if success:
-        current_user = {'username': username, 'is_admin': is_admin}
+        user_data = db.get_user(username)
+        current_user = {
+            'username': username,
+            'is_admin': is_admin,
+            'class': user_data['characters'][0].get('class') if user_data else None,
+            'quests': user_data['characters'][0].get('quests', {}) if user_data else {}
+        }
         load_game_world()
         other_players = {}
         for uname, pos in players.items():
@@ -118,14 +132,15 @@ def create_account():
     global message
     username = new_username_input.text
     password = new_password_input.text
-    if db.create_user(username, password):
+    char_class = class_input.text or 'Warrior'
+    if db.create_user(username, password, char_class):
         message = 'Account created successfully! Please login.'
         set_state('login')
     else:
         message = 'Username already exists.'
 
 def load_game_world():
-    global all_sprites, player, camera, wall_sprites, enemy_sprites, resource_sprites, projectile_sprites, inventory_panel_img, resource_icon_img
+    global all_sprites, player, camera, wall_sprites, enemy_sprites, resource_sprites, projectile_sprites, inventory_panel_img, resource_icon_img, quest_manager
     
     inventory_panel_img = pygame.image.load("data/Wenrexa/Wenrexa Interface UI KIT #4/PNG/Panel01.png").convert_alpha()
     inventory_panel_img = pygame.transform.scale(inventory_panel_img, (250, 180))
@@ -153,6 +168,16 @@ def load_game_world():
                 wall_sprites.add(wall)
 
     player = Player(100, 100)
+    class_name = current_user.get('class', 'Warrior')
+    class_def = CLASS_DEFS.get(class_name, {})
+    stats = class_def.get('base_stats', {})
+    player.max_health = stats.get('health', player.max_health)
+    player.health = player.max_health
+    player.attack = stats.get('attack', player.attack)
+    player.defense = stats.get('defense', player.defense)
+    player.character_class = class_name
+    quest_manager = QuestManager()
+    quest_manager.load_from_dict(current_user.get('quests', {}))
     all_sprites.add(player)
 
     camera = Camera(map_width, map_height)
@@ -168,10 +193,12 @@ def display_inventory(inventory):
     screen.blit(inventory_panel_img, (10, 10))
     font = pygame.font.Font(None, 36)
     y_offset = 50
-    
-    for resource, count in inventory.items():
-        screen.blit(resource_icon_img, (35, y_offset - 5))
-        text = font.render(f"x {count}", True, WHITE)
+
+    for item_id, data in inventory.items():
+        icon = pygame.image.load(data['item'].icon).convert_alpha()
+        icon = pygame.transform.scale(icon, (40, 40))
+        screen.blit(icon, (35, y_offset - 5))
+        text = font.render(f"x {data['qty']}", True, WHITE)
         screen.blit(text, (85, y_offset))
         y_offset += 50
 
@@ -197,6 +224,12 @@ def display_hud(player):
     # Health text
     health_text = font.render(f"{player.health}/{player.max_health}", True, WHITE)
     screen.blit(health_text, (bar_x + bar_width // 2 - health_text.get_width() // 2, bar_y + bar_height // 2 - health_text.get_height() // 2))
+
+    # Level and XP
+    level_text = font.render(f"Lv {player.level}", True, WHITE)
+    screen.blit(level_text, (10, 80))
+    xp_text = font.render(f"XP: {player.xp}/{player.required_xp}", True, WHITE)
+    screen.blit(xp_text, (10, 110))
 
     # Inventory
     display_inventory(player.inventory)
@@ -270,6 +303,8 @@ while True:
             player.move(keys, wall_sprites, enemy_sprites)
         camera.update(player)
         player.collect_resources(resource_sprites)
+        events.check_events(player, quest_manager)
+        db.save_user_quests(current_user['username'], quest_manager.to_dict())
         for enemy in enemy_sprites:
             if player.rect.colliderect(enemy.rect):
                 player.take_damage(max(0, enemy.attack - player.defense))

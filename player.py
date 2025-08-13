@@ -1,6 +1,7 @@
 # player.py
 import pygame
 from settings import *
+from item import ITEM_DEFS, Item
 
 class Player(pygame.sprite.Sprite):
     def __init__(self, x, y):
@@ -18,8 +19,14 @@ class Player(pygame.sprite.Sprite):
         self.max_health = 100
         self.attack = 15
         self.defense = 5
+        self.level = 1
+        self.xp = 0
+        self.required_xp = 100
         self.inventory = {}
         self.max_inventory_slots = 10
+        self.character_class = None
+        self.party = None  # placeholder for party system
+        self.quests = {}
         self.moving = False
         self.direction = "right"
         self.hit_timer = 0
@@ -88,13 +95,17 @@ class Player(pygame.sprite.Sprite):
     def collect_resources(self, resources):
         for resource in resources.copy():
             if self.rect.colliderect(resource.rect):
-                resource.kill() # Remove from all groups
-                resource_type = "alien_resource"
-                if resource_type in self.inventory:
-                    self.inventory[resource_type] += 1
+                resource.kill()  # Remove from all groups
+                item_id = getattr(resource, 'item_id', 'alien_resource')
+                item_def = ITEM_DEFS.get(item_id)
+                if not item_def:
+                    continue
+                if item_id in self.inventory:
+                    self.inventory[item_id]['qty'] += 1
                 else:
                     if len(self.inventory) < self.max_inventory_slots:
-                        self.inventory[resource_type] = 1
+                        self.inventory[item_id] = {'item': item_def, 'qty': 1}
+                self.add_xp(5)
 
     def melee_attack(self, enemies):
         """Perform a melee attack in front of the player."""
@@ -121,6 +132,15 @@ class Player(pygame.sprite.Sprite):
         self.damage_cooldown = 30
         if self.health <= 0:
             self.kill()
+
+    def add_xp(self, amount: int):
+        self.xp += amount
+        if self.xp >= self.required_xp:
+            self.xp -= self.required_xp
+            self.level += 1
+            self.required_xp = int(self.required_xp * 1.5)
+            self.max_health += 10
+            self.health = self.max_health
 
     def update(self):
         self.update_animation()

@@ -1,0 +1,32 @@
+{
+  "Warrior": {
+    "type": "melee_physical",
+    "base_stats": {"health": 120, "attack": 15, "defense": 10, "magic": 0},
+    "abilities": ["Slash", "Shield Block"]
+  },
+  "Battlemage": {
+    "type": "melee_magic",
+    "base_stats": {"health": 100, "attack": 10, "defense": 8, "magic": 10},
+    "abilities": ["Arcane Strike", "Mana Shield"]
+  },
+  "Archer": {
+    "type": "ranged_physical",
+    "base_stats": {"health": 90, "attack": 12, "defense": 5, "magic": 0},
+    "abilities": ["Arrow Shot", "Multi Shot"]
+  },
+  "Sorcerer": {
+    "type": "ranged_magic",
+    "base_stats": {"health": 80, "attack": 5, "defense": 4, "magic": 15},
+    "abilities": ["Fireball", "Ice Bolt"]
+  },
+  "Bard": {
+    "type": "support_physical",
+    "base_stats": {"health": 85, "attack": 8, "defense": 5, "magic": 5},
+    "abilities": ["Inspiring Tune", "Distracting Chord"]
+  },
+  "Priest": {
+    "type": "support_magic",
+    "base_stats": {"health": 90, "attack": 4, "defense": 4, "magic": 12},
+    "abilities": ["Heal", "Blessing"]
+  }
+}

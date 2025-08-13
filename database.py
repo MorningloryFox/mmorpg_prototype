@@ -25,24 +25,40 @@ def get_user(username):
     data = load_data()
     return data['users'].get(username)
 
-def create_user(username, password, is_admin=False):
+def create_user(username, password, char_class, is_admin=False):
     data = load_data()
     if username in data['users']:
-        return False # User already exists
-    
+        return False  # User already exists
+
+    character = {
+        'class': char_class,
+        'level': 1,
+        'xp': 0,
+        'quests': {}
+    }
+
     data['users'][username] = {
         'password': hash_password(password),
         'is_admin': is_admin,
-        'characters': []
+        'characters': [character]
     }
     save_data(data)
     return True
+
+
+def save_user_quests(username, quests):
+    data = load_data()
+    user = data['users'].get(username)
+    if not user or not user['characters']:
+        return
+    user['characters'][0]['quests'] = quests
+    save_data(data)
 
 def setup_database():
     """Initializes the database with a default admin user."""
     print("Setting up the database...")
     if not get_user('admin'):
-        create_user('admin', 'admin', is_admin=True)
+        create_user('admin', 'admin', 'Warrior', is_admin=True)
         print("Admin user 'admin' with password 'admin' created.")
     else:
         print("Admin user already exists.")
