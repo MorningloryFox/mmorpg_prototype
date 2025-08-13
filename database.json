@@ -1,0 +1,19 @@
+{
+    "users": {
+        "admin": {
+            "password": "$2b$12$6flNnWzKTQ/bvwICxc6A2OUZ6ItBznXYdhw8Fgb6ScS0B6UmfViSa",
+            "is_admin": true,
+            "characters": []
+        },
+        "afasdfsd": {
+            "password": "$2b$12$bYtg7zjIGmawFK6NtcD72eg.E3b20LeLjRu1eY9MJo/eZ.eGXdgKS",
+            "is_admin": false,
+            "characters": []
+        },
+        "123": {
+            "password": "$2b$12$JZAA1udk01cLEtW0Ht6wzuzaBPmsiOMz9nREH0j4L7n98dR0i/Ugm",
+            "is_admin": false,
+            "characters": []
+        }
+    }
+}

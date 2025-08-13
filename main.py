@@ -1,140 +1,243 @@
-# Importando bibliotecas necessárias
+# main.py
 import pygame
+import sys
 import random
 
-# Inicializando o Pygame
+from settings import *
+from player import Player
+from resource import Resource
+from wall import Wall
+from camera import Camera
+from enemy import Enemy
+from ui import Button, InputBox, Label
+from editor import Editor
+import database as db
+
+# --- Game Setup ---
 pygame.init()
-
-# Definindo constantes
-SCREEN_WIDTH = 800
-SCREEN_HEIGHT = 600
-FPS = 60
-
-# Cores
-WHITE = (255, 255, 255)
-BLACK = (0, 0, 0)
-GREEN = (0, 255, 0)  # Cor para recursos alienígenas
-BROWN = (139, 69, 19)  # Cor para o solo
-
-# Configurando a tela
 screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
 pygame.display.set_caption("MMORPG 2D Prototype")
+clock = pygame.time.Clock()
+font = pygame.font.Font(None, 36)
 
-# Definindo variáveis do jogador
-player_pos = [SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2]
-player_speed = 5
+# --- Game State Variables ---
+game_state = 'login'
+current_user = None
+message = ''
 
-# Lista de recursos alienígenas
-alien_resources = []
-inventory = {}  # Dicionário para armazenar recursos e suas quantidades
-max_inventory_slots = 10  # Número máximo de slots no inventário
+# --- Load UI Assets ---
+login_panel_img = pygame.image.load("data/Wenrexa/Wenrexa Interface UI KIT #4/PNG/Panel02.png").convert_alpha()
+login_panel_img = pygame.transform.scale(login_panel_img, (400, 500))
+button_img = pygame.image.load("data/Wenrexa/Wenrexa Interface UI KIT #4/PNG/Btn01.png").convert_alpha()
 
-# Carregar sprites de animação
-player_idle = pygame.image.load("data/Bot Wheel/static idle.png")  # Sprite de idle
-player_walk_left = pygame.image.load("data/Bot Wheel/move with FX.png")  # Sprite de andar para a esquerda
-player_walk_right = pygame.image.load("data/Bot Wheel/move with FX.png")  # Sprite de andar para a direita
+# HUD Assets
+health_bar_bg_img = pygame.image.load("data/Wenrexa/Wenrexa Interface UI KIT #4/PNG/ProgressBar_01/BarV1_ProgressBar.png").convert_alpha()
+health_bar_fill_img = pygame.image.load("data/Wenrexa/Wenrexa Interface UI KIT #4/PNG/ProgressBar_01/BarV1_Bar.png").convert_alpha()
 
-# Função para gerar recursos alienígenas
-def generate_alien_resources():
-    for _ in range(5):  # Gerar 5 recursos
-        x = random.randint(0, SCREEN_WIDTH)
-        y = random.randint(0, SCREEN_HEIGHT)
-        alien_resources.append((x, y))
+# --- UI Elements ---
+panel_x = (SCREEN_WIDTH - 400) // 2
+panel_y = (SCREEN_HEIGHT - 500) // 2
 
-# Função para coletar recursos
-def collect_resources():
-    global player_pos, inventory
-    for resource in alien_resources[:]:  # Iterar sobre uma cópia da lista
-        if (player_pos[0] < resource[0] + 10 and player_pos[0] > resource[0] - 10 and
-            player_pos[1] < resource[1] + 10 and player_pos[1] > resource[1] - 10):
-            alien_resources.remove(resource)  # Remover recurso coletado
-            resource_type = "alien_resource"  # Tipo de recurso coletado
-            if resource_type in inventory:
-                inventory[resource_type] += 1  # Incrementar contador
-            else:
-                inventory[resource_type] = 1  # Adicionar novo recurso ao inventário
+# Login Screen
+login_title = Label(panel_x + 200, panel_y + 80, "Login", font_size=50)
+username_input = InputBox(panel_x + 100, panel_y + 150, 200, 40)
+password_input = InputBox(panel_x + 100, panel_y + 210, 200, 40, is_password=True)
+login_button = Button(panel_x + 125, panel_y + 280, 150, 50, 'Login', lambda: login(), image=button_img)
+create_account_button = Button(panel_x + 100, panel_y + 340, 200, 50, 'Create Account', lambda: set_state('create_account'), image=button_img)
+login_elements = [login_title, username_input, password_input, login_button, create_account_button]
 
-# Função para exibir o inventário
-def display_inventory():
-    font = pygame.font.Font(None, 36)
-    y_offset = 10
-    for resource, count in inventory.items():
-        text = font.render(f"{resource}: {count}", True, BLACK)
-        screen.blit(text, (10, y_offset))
-        y_offset += 30
+# Create Account Screen
+create_account_title = Label(panel_x + 200, panel_y + 80, "Create Account", font_size=40)
+new_username_input = InputBox(panel_x + 100, panel_y + 150, 200, 40)
+new_password_input = InputBox(panel_x + 100, panel_y + 210, 200, 40, is_password=True)
+create_button = Button(panel_x + 125, panel_y + 280, 150, 50, 'Create', lambda: create_account(), image=button_img)
+back_to_login_button = Button(panel_x + 100, panel_y + 340, 200, 50, 'Back to Login', lambda: set_state('login'), image=button_img)
+create_account_elements = [create_account_title, new_username_input, new_password_input, create_button, back_to_login_button]
 
-# Função para desenhar o mapa
-def draw_map():
-    for x in range(0, SCREEN_WIDTH, 50):  # Desenhar linhas horizontais
-        for y in range(0, SCREEN_HEIGHT, 50):  # Desenhar linhas verticais
-            if random.random() < 0.1:  # 10% de chance de desenhar um obstáculo
-                pygame.draw.rect(screen, BROWN, (x, y, 50, 50))  # Desenhar solo
+# Options Menu
+options_title = Label(panel_x + 200, panel_y + 80, "Options", font_size=50)
+resume_button = Button(panel_x + 125, panel_y + 200, 150, 50, 'Resume', lambda: set_state('playing'), image=button_img)
+logout_button = Button(panel_x + 125, panel_y + 280, 150, 50, 'Logout', lambda: set_state('login'), image=button_img)
+options_elements = [options_title, resume_button, logout_button]
 
-# Função para exibir a tela de início
-def display_start_screen():
-    font = pygame.font.Font(None, 74)
-    title_text = font.render("MMORPG 2D", True, BLACK)
-    start_text = font.render("Pressione ENTER para Iniciar", True, BLACK)
+# --- Game World Variables ---
+all_sprites = None
+player = None
+camera = None
+wall_sprites = None
+enemy_sprites = None
+resource_sprites = None
+inventory_panel_img = None
+resource_icon_img = None
+editor = Editor()
+
+def set_state(new_state):
+    global game_state, message
+    game_state = new_state
+    message = ''
+
+def login():
+    global current_user, message
+    username = username_input.text
+    password = password_input.text
+    user_data = db.get_user(username)
+    if user_data and db.verify_password(user_data['password'], password):
+        current_user = {'username': username, 'is_admin': user_data['is_admin']}
+        load_game_world()
+        set_state('playing')
+    else:
+        message = 'Invalid username or password'
+
+def create_account():
+    global message
+    username = new_username_input.text
+    password = new_password_input.text
+    if db.create_user(username, password):
+        message = 'Account created successfully! Please login.'
+        set_state('login')
+    else:
+        message = 'Username already exists.'
+
+def load_game_world():
+    global all_sprites, player, camera, wall_sprites, enemy_sprites, resource_sprites, inventory_panel_img, resource_icon_img
     
-    screen.fill(WHITE)
-    screen.blit(title_text, (SCREEN_WIDTH // 2 - title_text.get_width() // 2, SCREEN_HEIGHT // 2 - 50))
-    screen.blit(start_text, (SCREEN_WIDTH // 2 - start_text.get_width() // 2, SCREEN_HEIGHT // 2 + 50))
-    pygame.display.flip()
+    inventory_panel_img = pygame.image.load("data/Wenrexa/Wenrexa Interface UI KIT #4/PNG/Panel01.png").convert_alpha()
+    inventory_panel_img = pygame.transform.scale(inventory_panel_img, (250, 180))
+    resource_icon_img = pygame.image.load("data/Wenrexa/Wenrexa Interface UI KIT #4/PNG/Icons/Icon01.png").convert_alpha()
+    resource_icon_img = pygame.transform.scale(resource_icon_img, (40, 40))
 
-# Função principal do jogo
-def main():
-    generate_alien_resources()  # Gerar recursos no início
-    clock = pygame.time.Clock()
-    running = True
-    game_started = False
+    all_sprites = pygame.sprite.Group()
+    wall_sprites = pygame.sprite.Group()
+    enemy_sprites = pygame.sprite.Group()
+    resource_sprites = pygame.sprite.Group()
 
-    while running:
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                running = False
+    with open("map.txt", 'r') as f:
+        map_data = f.readlines()
+
+    TILE_SIZE = 32
+    map_width = len(map_data[0].strip()) * TILE_SIZE
+    map_height = len(map_data) * TILE_SIZE
+
+    for row, tiles in enumerate(map_data):
+        for col, tile in enumerate(tiles):
+            if tile == 'W':
+                wall = Wall(col * TILE_SIZE, row * TILE_SIZE, editor.tiles[0])
+                all_sprites.add(wall)
+                wall_sprites.add(wall)
+
+    player = Player(100, 100)
+    all_sprites.add(player)
+
+    camera = Camera(map_width, map_height)
+
+def display_inventory(inventory):
+    screen.blit(inventory_panel_img, (10, 10))
+    font = pygame.font.Font(None, 36)
+    y_offset = 50
+    
+    for resource, count in inventory.items():
+        screen.blit(resource_icon_img, (35, y_offset - 5))
+        text = font.render(f"x {count}", True, WHITE)
+        screen.blit(text, (85, y_offset))
+        y_offset += 50
+
+def display_hud(player):
+    # Player Name
+    name_surf = font.render(player.name, True, WHITE)
+    screen.blit(name_surf, (10, 10))
+
+    # Health Bar
+    bar_width = 200
+    bar_height = 30
+    bar_x = 10
+    bar_y = 40
+
+    # Background of health bar
+    screen.blit(pygame.transform.scale(health_bar_bg_img, (bar_width, bar_height)), (bar_x, bar_y))
+
+    # Fill of health bar
+    health_percentage = player.health / player.max_health
+    fill_width = int(bar_width * health_percentage)
+    screen.blit(pygame.transform.scale(health_bar_fill_img, (fill_width, bar_height)), (bar_x, bar_y))
+
+    # Health text
+    health_text = font.render(f"{player.health}/{player.max_health}", True, WHITE)
+    screen.blit(health_text, (bar_x + bar_width // 2 - health_text.get_width() // 2, bar_y + bar_height // 2 - health_text.get_height() // 2))
+
+    # Inventory
+    display_inventory(player.inventory)
+
+# --- Main Game Loop ---
+while True:
+    for event in pygame.event.get():
+        if event.type == pygame.QUIT:
+            pygame.quit()
+            sys.exit()
+        
+        if game_state == 'login':
+            for el in login_elements:
+                if isinstance(el, (Button, InputBox)):
+                    el.handle_event(event)
+        elif game_state == 'create_account':
+            for el in create_account_elements:
+                if isinstance(el, (Button, InputBox)):
+                    el.handle_event(event)
+        elif game_state == 'playing':
             if event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_RETURN:  # Iniciar o jogo ao pressionar ENTER
-                    game_started = True
+                if event.key == pygame.K_F1 and current_user['is_admin']:
+                    set_state('editor')
+                elif event.key == pygame.K_ESCAPE:
+                    set_state('options')
+        elif game_state == 'editor':
+            editor.handle_event(event, all_sprites, wall_sprites, camera)
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_F1:
+                    set_state('playing')
+                elif event.key == pygame.K_s and pygame.key.get_mods() & pygame.KMOD_CTRL:
+                    editor.save_map(wall_sprites)
+                    message = "Map Saved!"
+        elif game_state == 'options':
+            for el in options_elements:
+                if isinstance(el, Button):
+                    el.handle_event(event)
 
-        if not game_started:
-            display_start_screen()  # Exibir tela de início
-        else:
-            # Capturando teclas pressionadas
+    screen.fill(BLACK)
+
+    if game_state == 'login':
+        screen.blit(login_panel_img, (panel_x, panel_y))
+        for el in login_elements:
+            el.draw(screen)
+        msg_surf = font.render(message, True, RED)
+        screen.blit(msg_surf, (panel_x + 50, panel_y + 420))
+
+    elif game_state == 'create_account':
+        screen.blit(login_panel_img, (panel_x, panel_y))
+        for el in create_account_elements:
+            el.draw(screen)
+        msg_surf = font.render(message, True, RED)
+        screen.blit(msg_surf, (panel_x + 50, panel_y + 420))
+
+    elif game_state == 'playing' or game_state == 'options' or game_state == 'editor':
+        # Draw the game world in the background for these states
+        all_sprites.update()
+        if game_state != 'options': # Don't move player in options menu
             keys = pygame.key.get_pressed()
-            if keys[pygame.K_LEFT]:
-                player_pos[0] -= player_speed
-            if keys[pygame.K_RIGHT]:
-                player_pos[0] += player_speed
-            if keys[pygame.K_UP]:
-                player_pos[1] -= player_speed
-            if keys[pygame.K_DOWN]:
-                player_pos[1] += player_speed
+            player.move(keys, wall_sprites, enemy_sprites)
+        camera.update(player)
+        player.collect_resources(resource_sprites)
 
-            # Coletar recursos
-            collect_resources()
+        for sprite in all_sprites:
+            screen.blit(sprite.image, camera.apply(sprite))
+        display_hud(player)
 
-            # Preenchendo a tela com a cor branca
-            screen.fill(WHITE)
+        if game_state == 'options':
+            screen.blit(login_panel_img, (panel_x, panel_y))
+            for el in options_elements:
+                el.draw(screen)
+        elif game_state == 'editor':
+            editor.draw(screen)
+            msg_surf = font.render(message, True, GREEN)
+            screen.blit(msg_surf, (10, 10))
 
-            # Desenhar o mapa
-            draw_map()
-
-            # Desenhando o jogador com o sprite atual
-            screen.blit(player_idle, (player_pos[0], player_pos[1]))  # Usar sprite de idle
-
-            # Desenhando recursos alienígenas
-            for resource in alien_resources:
-                pygame.draw.circle(screen, GREEN, resource, 10)  # Desenhar recursos como círculos
-
-            # Exibir inventário
-            display_inventory()
-
-            # Atualizando a tela
-            pygame.display.flip()
-
-        clock.tick(FPS)
-
-    pygame.quit()
-
-if __name__ == "__main__":
-    main()
+    pygame.display.flip()
+    clock.tick(FPS)
