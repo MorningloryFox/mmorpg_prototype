@@ -4,12 +4,13 @@ from .common import Button
 class AdminPanel:
     """Simple admin tools panel with basic commands."""
 
-    def __init__(self, net_client, player):
+    def __init__(self, net_client, player, npc_editor=None):
         self.net_client = net_client
         self.player = player
+        self.npc_editor = npc_editor
         self.visible = False
         self.width = 300
-        self.height = 200
+        self.height = 260
         self.x = 20
         self.y = 100
         self.surface = pygame.Surface((self.width, self.height))
@@ -30,6 +31,10 @@ class AdminPanel:
         # Button to toggle day/night
         self.buttons.append(
             Button(self.x + 10, self.y + 110, 130, 40, "Toggle Day", self._toggle_day)
+        )
+        # Button to open NPC editor
+        self.buttons.append(
+            Button(self.x + 10, self.y + 160, 130, 40, "NPC Editor", self._open_npc_editor)
         )
 
     # --- Admin Commands ---
@@ -57,6 +62,10 @@ class AdminPanel:
             return
         # The actual mode will be toggled server-side; client just requests
         self.net_client.send_admin(command="toggle_weather")
+
+    def _open_npc_editor(self):
+        if self.npc_editor:
+            self.npc_editor.toggle()
 
     # --- UI Handling ---
     def handle_event(self, event):

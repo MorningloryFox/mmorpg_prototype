@@ -18,7 +18,7 @@ from wall import Wall
 from camera import Camera
 from enemy import Enemy
 from entities.projectile import Projectile
-from ui import Button, InputBox, Label, AdminPanel
+from ui import Button, InputBox, Label, AdminPanel, NPCEditor
 from ui.chat import Chat
 from ui.hotbar import Hotbar
 from ui.status import StatusUI
@@ -85,6 +85,7 @@ shop_ui = ShopUI(shop)
 bank_ui = BankUI(bank)
 crafting_ui = CraftingUI(crafting)
 status_ui = None
+npc_editor = None
 skill_editor = None
 admin_ui = None
 weather = Weather()
@@ -167,7 +168,7 @@ def login():
         }
         load_game_world()
         if is_admin:
-            admin_ui = AdminPanel(net_client, player)
+            admin_ui = AdminPanel(net_client, player, npc_editor)
         other_players = {}
         for uname, pos in players.items():
             if uname != username:
@@ -193,7 +194,7 @@ def create_account():
         message = 'Username already exists.'
 
 def load_game_world():
-    global all_sprites, player, camera, wall_sprites, enemy_sprites, resource_sprites, projectile_sprites, inventory_panel_img, resource_icon_img, quest_manager, ground_layer_surf, object_layer_surf, status_ui, skill_editor
+    global all_sprites, player, camera, wall_sprites, enemy_sprites, resource_sprites, projectile_sprites, inventory_panel_img, resource_icon_img, quest_manager, ground_layer_surf, object_layer_surf, status_ui, skill_editor, npc_editor
 
     inventory_panel_img = pygame.image.load("data/Wenrexa/Wenrexa Interface UI KIT #4/PNG/Panel01.png").convert_alpha()
     inventory_panel_img = pygame.transform.scale(inventory_panel_img, (250, 180))
@@ -280,6 +281,7 @@ def load_game_world():
     player.guild = current_user.get('guild')
     status_ui = StatusUI(player)
     skill_editor = SkillEditor()
+    npc_editor = NPCEditor()
     quest_manager = QuestManager()
     quest_manager.load_from_dict(current_user.get('quests', {}))
     all_sprites.add(player)
@@ -372,6 +374,8 @@ while True:
                 status_ui.handle_event(event)
             if skill_editor:
                 skill_editor.handle_event(event)
+            if npc_editor:
+                npc_editor.handle_event(event)
             if admin_ui:
                 admin_ui.handle_event(event)
             if event.type == pygame.KEYDOWN and not chat_ui.active:
@@ -559,6 +563,8 @@ while True:
             status_ui.draw(screen)
         if skill_editor:
             skill_editor.draw(screen)
+        if npc_editor:
+            npc_editor.draw(screen)
         if admin_ui:
             admin_ui.draw(screen)
         weather.apply(screen)
