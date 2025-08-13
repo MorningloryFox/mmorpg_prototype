@@ -42,6 +42,10 @@ class NetworkClient:
     def update_position(self, x: int, y: int) -> None:
         self.send({"action": "pos", "x": x, "y": y})
 
+    def send_chat(self, text: str) -> None:
+        """Send a chat message to the server."""
+        self.send({"action": "chat", "text": text})
+
     def get_messages(self) -> List[dict]:
         messages = []
         while not self.incoming.empty():

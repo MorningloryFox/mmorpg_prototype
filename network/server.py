@@ -34,6 +34,8 @@ class Server:
                 username = self._handle_login(conn, data)
             elif action == "pos" and username:
                 self._handle_position(username, data, exclude=conn)
+            elif action == "chat" and username:
+                self.broadcast({"action": "chat", "username": username, "text": data.get("text", "")})
         # client disconnected
         if username:
             with self.lock:

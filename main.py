@@ -10,6 +10,8 @@ from wall import Wall
 from camera import Camera
 from enemy import Enemy
 from ui import Button, InputBox, Label
+from ui.chat import Chat
+from ui.hotbar import Hotbar
 from editor import Editor
 import database as db
 from network.client import NetworkClient
@@ -27,6 +29,8 @@ current_user = None
 message = ''
 net_client = None
 other_players = {}
+chat_ui = Chat()
+hotbar = Hotbar()
 
 # --- Load UI Assets ---
 login_panel_img = pygame.image.load("data/Wenrexa/Wenrexa Interface UI KIT #4/PNG/Panel02.png").convert_alpha()
@@ -150,6 +154,13 @@ def load_game_world():
 
     camera = Camera(map_width, map_height)
 
+
+def send_chat_message(text: str) -> None:
+    """Send a chat message to the server and display locally."""
+    chat_ui.add_message(f"{current_user['username']}: {text}")
+    if net_client:
+        net_client.send_chat(text)
+
 def display_inventory(inventory):
     screen.blit(inventory_panel_img, (10, 10))
     font = pygame.font.Font(None, 36)
@@ -187,6 +198,9 @@ def display_hud(player):
     # Inventory
     display_inventory(player.inventory)
 
+    # Hotbar
+    hotbar.draw(screen)
+
 # --- Main Game Loop ---
 while True:
     for event in pygame.event.get():
@@ -203,7 +217,9 @@ while True:
                 if isinstance(el, (Button, InputBox)):
                     el.handle_event(event)
         elif game_state == 'playing':
-            if event.type == pygame.KEYDOWN:
+            chat_ui.handle_event(event, lambda text: send_chat_message(text))
+            hotbar.handle_event(event)
+            if event.type == pygame.KEYDOWN and not chat_ui.active:
                 if event.key == pygame.K_F1 and current_user['is_admin']:
                     set_state('editor')
                 elif event.key == pygame.K_ESCAPE:
@@ -240,7 +256,7 @@ while True:
     elif game_state == 'playing' or game_state == 'options' or game_state == 'editor':
         # Draw the game world in the background for these states
         all_sprites.update()
-        if game_state != 'options':  # Don't move player in options menu
+        if game_state != 'options' and not chat_ui.active:  # Don't move player in options menu or while chatting
             keys = pygame.key.get_pressed()
             player.move(keys, wall_sprites, enemy_sprites)
         camera.update(player)
@@ -273,10 +289,13 @@ while True:
                     if uname in other_players:
                         other_players[uname].kill()
                         del other_players[uname]
+                elif action == 'chat':
+                    chat_ui.add_message(f"{msg.get('username')}: {msg.get('text', '')}")
 
         for sprite in all_sprites:
             screen.blit(sprite.image, camera.apply(sprite))
         display_hud(player)
+        chat_ui.draw(screen)
 
         if game_state == 'options':
             screen.blit(login_panel_img, (panel_x, panel_y))
