@@ -50,8 +50,26 @@ class NetworkClient:
     def send_trade(self, target: str, item_id: str, qty: int = 1) -> None:
         self.send({"action": "trade", "target": target, "item_id": item_id, "qty": qty})
 
-    def send_attack(self, atk_type: str, direction: str, x: int | None = None, y: int | None = None, damage: int = 0) -> None:
-        self.send({"action": "attack", "type": atk_type, "dir": direction, "x": x, "y": y, "damage": damage})
+    def send_attack(
+        self,
+        atk_type: str,
+        direction: str,
+        x: int | None = None,
+        y: int | None = None,
+        damage: int = 0,
+        proj: str | None = None,
+    ) -> None:
+        msg = {
+            "action": "attack",
+            "type": atk_type,
+            "dir": direction,
+            "x": x,
+            "y": y,
+            "damage": damage,
+        }
+        if proj:
+            msg["proj"] = proj
+        self.send(msg)
 
     def send_skill(self, skill_name: str) -> None:
         self.send({"action": "skill", "skill": skill_name})

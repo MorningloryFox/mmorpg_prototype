@@ -149,6 +149,8 @@ class Server:
             "y": data.get("y"),
             "damage": dmg,
         }
+        if "proj" in data:
+            msg["proj"] = data.get("proj")
         self.broadcast(msg, exclude=None)
 
     def _handle_skill(self, username: str, data: dict) -> None:

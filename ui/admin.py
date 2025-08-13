@@ -4,16 +4,26 @@ from .common import Button
 class AdminPanel:
     """Simple admin tools panel with basic commands."""
 
-    def __init__(self, net_client, player, npc_editor=None, shop_editor=None, item_editor=None, dialogue_editor=None):
+    def __init__(
+        self,
+        net_client,
+        player,
+        npc_editor=None,
+        shop_editor=None,
+        item_editor=None,
+        dialogue_editor=None,
+        projectile_editor=None,
+    ):
         self.net_client = net_client
         self.player = player
         self.npc_editor = npc_editor
         self.shop_editor = shop_editor
         self.item_editor = item_editor
         self.dialogue_editor = dialogue_editor
+        self.projectile_editor = projectile_editor
         self.visible = False
         self.width = 300
-        self.height = 360
+        self.height = 420
         self.x = 20
         self.y = 100
         self.surface = pygame.Surface((self.width, self.height))
@@ -50,6 +60,10 @@ class AdminPanel:
         # Button to open Dialogue editor
         self.buttons.append(
             Button(self.x + 10, self.y + 310, 130, 40, "Dialog Editor", self._open_dialogue_editor)
+        )
+        # Button to open Projectile editor
+        self.buttons.append(
+            Button(self.x + 10, self.y + 360, 130, 40, "Proj Editor", self._open_projectile_editor)
         )
 
     # --- Admin Commands ---
@@ -93,6 +107,10 @@ class AdminPanel:
     def _open_dialogue_editor(self):
         if self.dialogue_editor:
             self.dialogue_editor.toggle()
+
+    def _open_projectile_editor(self):
+        if self.projectile_editor:
+            self.projectile_editor.toggle()
 
     # --- UI Handling ---
     def handle_event(self, event):

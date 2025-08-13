@@ -17,7 +17,6 @@ with open('classes.json', 'r') as f:
 from wall import Wall
 from camera import Camera
 from enemy import Enemy
-from entities.projectile import Projectile
 from ui import (
     Button,
     InputBox,
@@ -28,11 +27,13 @@ from ui import (
     ItemEditor,
     DialogueEditor,
     DialogueUI,
+    ProjectileEditor,
 )
 from ui.chat import Chat
 from ui.hotbar import Hotbar
 from ui.status import StatusUI
 from ui.skill_editor import SkillEditor
+from projectiles import create_projectile, PROJECTILE_DEFS
 from shop import Shop
 from bank import Bank
 from crafting import Crafting
@@ -102,6 +103,7 @@ admin_ui = None
 item_editor = None
 dialogue_editor = None
 dialogue_ui = None
+projectile_editor = None
 weather = Weather()
 ground_layer_surf = None
 object_layer_surf = None
@@ -182,7 +184,15 @@ def login():
         }
         load_game_world()
         if is_admin:
-            admin_ui = AdminPanel(net_client, player, npc_editor, shop_editor, item_editor, dialogue_editor)
+            admin_ui = AdminPanel(
+                net_client,
+                player,
+                npc_editor,
+                shop_editor,
+                item_editor,
+                dialogue_editor,
+                projectile_editor,
+            )
         other_players = {}
         for uname, pos in players.items():
             if uname != username:
@@ -208,7 +218,7 @@ def create_account():
         message = 'Username already exists.'
 
 def load_game_world():
-    global all_sprites, player, camera, wall_sprites, enemy_sprites, resource_sprites, projectile_sprites, inventory_panel_img, resource_icon_img, quest_manager, ground_layer_surf, object_layer_surf, status_ui, skill_editor, npc_editor, shop_editor, item_editor, dialogue_editor, dialogue_ui
+    global all_sprites, player, camera, wall_sprites, enemy_sprites, resource_sprites, projectile_sprites, inventory_panel_img, resource_icon_img, quest_manager, ground_layer_surf, object_layer_surf, status_ui, skill_editor, npc_editor, shop_editor, item_editor, dialogue_editor, dialogue_ui, projectile_editor
 
     inventory_panel_img = pygame.image.load("data/Wenrexa/Wenrexa Interface UI KIT #4/PNG/Panel01.png").convert_alpha()
     inventory_panel_img = pygame.transform.scale(inventory_panel_img, (250, 180))
@@ -298,6 +308,7 @@ def load_game_world():
     npc_editor = NPCEditor()
     shop_editor = ShopEditor()
     item_editor = ItemEditor()
+    projectile_editor = ProjectileEditor()
     dialogue_editor = DialogueEditor()
     dialogue_ui = DialogueUI()
     quest_manager = QuestManager()
@@ -400,6 +411,8 @@ while True:
                 item_editor.handle_event(event)
             if dialogue_editor:
                 dialogue_editor.handle_event(event)
+            if projectile_editor:
+                projectile_editor.handle_event(event)
             if dialogue_ui:
                 dialogue_ui.handle_event(event)
             if admin_ui:
@@ -437,14 +450,32 @@ while True:
                     if net_client:
                         net_client.send_attack("melee", player.direction, damage=player.attack)
                 elif event.key == pygame.K_f:
-                    dmg = player.attack
+                    proj_id = "arrow"
                     if random.random() < player.crit / 100:
-                        dmg *= 2
-                    proj = Projectile(player.rect.centerx, player.rect.centery, player.direction, wall_sprites, enemy_sprites, dmg, owner=player)
+                        bonus = player.attack * 2
+                    else:
+                        bonus = player.attack
+                    proj = create_projectile(
+                        proj_id,
+                        player.rect.centerx,
+                        player.rect.centery,
+                        player.direction,
+                        wall_sprites,
+                        enemy_sprites,
+                        owner=player,
+                        base_damage=bonus,
+                    )
                     all_sprites.add(proj)
                     projectile_sprites.add(proj)
                     if net_client:
-                        net_client.send_attack("projectile", player.direction, player.rect.centerx, player.rect.centery, dmg)
+                        net_client.send_attack(
+                            "projectile",
+                            player.direction,
+                            player.rect.centerx,
+                            player.rect.centery,
+                            proj.damage,
+                            proj=proj_id,
+                        )
                 elif event.key == pygame.K_h:
                     area = {'x': player.rect.x - 16, 'y': player.rect.y - 16, 'w': 32, 'h': 32}
                     housing.claim_area(current_user['username'], area)
@@ -539,7 +570,18 @@ while True:
                         if msg.get('type') == 'melee':
                             other_players[uname].melee_attack(enemy_sprites)
                         elif msg.get('type') == 'projectile':
-                            proj = Projectile(msg.get('x'), msg.get('y'), msg.get('dir'), wall_sprites, enemy_sprites, msg.get('damage', 0), owner=other_players[uname])
+                            proj_id = msg.get('proj', 'arrow')
+                            base = msg.get('damage', 0) - PROJECTILE_DEFS.get(proj_id, {}).get('damage', 0)
+                            proj = create_projectile(
+                                proj_id,
+                                msg.get('x'),
+                                msg.get('y'),
+                                msg.get('dir'),
+                                wall_sprites,
+                                enemy_sprites,
+                                owner=other_players[uname],
+                                base_damage=base,
+                            )
                             all_sprites.add(proj)
                             projectile_sprites.add(proj)
                 elif action == 'skill':
@@ -599,6 +641,8 @@ while True:
             item_editor.draw(screen)
         if dialogue_editor:
             dialogue_editor.draw(screen)
+        if projectile_editor:
+            projectile_editor.draw(screen)
         if dialogue_ui:
             dialogue_ui.draw(screen)
         if admin_ui:

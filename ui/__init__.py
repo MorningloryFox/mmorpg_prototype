@@ -11,6 +11,7 @@ from .shop_editor import ShopEditor
 from .item_editor import ItemEditor
 from .dialogue_editor import DialogueEditor
 from .dialogue import DialogueUI
+from .projectile_editor import ProjectileEditor
 from .admin import AdminPanel
 
 __all__ = [
@@ -29,5 +30,6 @@ __all__ = [
     "ItemEditor",
     "DialogueEditor",
     "DialogueUI",
+    "ProjectileEditor",
     "AdminPanel",
 ]
