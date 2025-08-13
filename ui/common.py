@@ -1,4 +1,4 @@
-# ui.py
+# common.py
 import pygame
 from settings import *
 

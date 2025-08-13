@@ -1,0 +1,6 @@
+{
+  "general": [
+    {"id": "sword", "buy": 50, "sell": 25},
+    {"id": "potion", "buy": 10, "sell": 5}
+  ]
+}

@@ -1,0 +1,6 @@
+{
+  "potion": {
+    "inputs": {"alien_resource": 2},
+    "output": {"potion": 1}
+  }
+}

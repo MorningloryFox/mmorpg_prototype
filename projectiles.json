@@ -1,0 +1,8 @@
+{
+  "arrow": {
+    "sprites": ["sprites/player_idle.png"],
+    "speed": 12,
+    "damage": 5,
+    "impact": "sprites/player_idle.png"
+  }
+}
