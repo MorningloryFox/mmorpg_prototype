@@ -27,6 +27,7 @@ from crafting import Crafting
 from ui.shop import ShopUI
 from ui.bank import BankUI
 from ui.crafting import CraftingUI
+# Map editing and rendering
 from editor import Editor
 import database as db
 from network.client import NetworkClient
@@ -82,6 +83,8 @@ shop_ui = ShopUI(shop)
 bank_ui = BankUI(bank)
 crafting_ui = CraftingUI(crafting)
 weather = Weather()
+ground_layer_surf = None
+object_layer_surf = None
 
 # --- Load UI Assets ---
 login_panel_img = pygame.image.load("data/Wenrexa/Wenrexa Interface UI KIT #4/PNG/Panel02.png").convert_alpha()
@@ -183,8 +186,8 @@ def create_account():
         message = 'Username already exists.'
 
 def load_game_world():
-    global all_sprites, player, camera, wall_sprites, enemy_sprites, resource_sprites, projectile_sprites, inventory_panel_img, resource_icon_img, quest_manager
-    
+    global all_sprites, player, camera, wall_sprites, enemy_sprites, resource_sprites, projectile_sprites, inventory_panel_img, resource_icon_img, quest_manager, ground_layer_surf, object_layer_surf
+
     inventory_panel_img = pygame.image.load("data/Wenrexa/Wenrexa Interface UI KIT #4/PNG/Panel01.png").convert_alpha()
     inventory_panel_img = pygame.transform.scale(inventory_panel_img, (250, 180))
     resource_icon_img = pygame.image.load("data/Wenrexa/Wenrexa Interface UI KIT #4/PNG/Icons/Icon01.png").convert_alpha()
@@ -196,21 +199,43 @@ def load_game_world():
     resource_sprites = pygame.sprite.Group()
     projectile_sprites = pygame.sprite.Group()
 
-    with open("map.txt", 'r') as f:
-        map_data = f.readlines()
+    with open("map.json", 'r') as f:
+        map_file = json.load(f)
+
+    # load layers into editor for editing
+    editor.layers = map_file.get('layers', editor.layers)
+    editor.metadata = map_file.get('metadata', editor.metadata)
 
     TILE_SIZE = 32
-    map_width = len(map_data[0].strip()) * TILE_SIZE
-    map_height = len(map_data) * TILE_SIZE
+    ground = editor.layers.get('ground', [])
+    objects = editor.layers.get('objects', [])
+    collisions = editor.layers.get('collision', [])
+    map_height = len(ground)
+    map_width = len(ground[0]) if ground else 0
 
-    for row, tiles in enumerate(map_data):
-        for col, tile in enumerate(tiles):
-            if tile == 'W':
+    ground_layer_surf = pygame.Surface((map_width * TILE_SIZE, map_height * TILE_SIZE), pygame.SRCALPHA)
+    object_layer_surf = pygame.Surface((map_width * TILE_SIZE, map_height * TILE_SIZE), pygame.SRCALPHA)
+
+    for row, tiles in enumerate(ground):
+        for col, tile_index in enumerate(tiles):
+            if tile_index >= 0:
+                ground_layer_surf.blit(editor.tiles[tile_index], (col * TILE_SIZE, row * TILE_SIZE))
+
+    for row, tiles in enumerate(objects):
+        for col, tile_index in enumerate(tiles):
+            if tile_index >= 0:
+                object_layer_surf.blit(editor.tiles[tile_index], (col * TILE_SIZE, row * TILE_SIZE))
+
+    for row, tiles in enumerate(collisions):
+        for col, val in enumerate(tiles):
+            if val:
                 wall = Wall(col * TILE_SIZE, row * TILE_SIZE, editor.tiles[0])
                 all_sprites.add(wall)
                 wall_sprites.add(wall)
 
     player = Player(100, 100)
+    weather.mode = editor.metadata.get('climate', 'day')
+
     class_name = current_user.get('class', 'Warrior')
     class_def = CLASS_DEFS.get(class_name, {})
     stats = class_def.get('base_stats', {})
@@ -223,7 +248,9 @@ def load_game_world():
     quest_manager.load_from_dict(current_user.get('quests', {}))
     all_sprites.add(player)
 
-    camera = Camera(map_width, map_height)
+    width_px = map_width * TILE_SIZE
+    height_px = map_height * TILE_SIZE
+    camera = Camera(width_px, height_px)
 
 
 def send_chat_message(text: str) -> None:
@@ -338,7 +365,7 @@ while True:
                 if event.key == pygame.K_F1:
                     set_state('playing')
                 elif event.key == pygame.K_s and pygame.key.get_mods() & pygame.KMOD_CTRL:
-                    editor.save_map(wall_sprites)
+                    editor.save_map()
                     message = "Map Saved!"
         elif game_state == 'options':
             for el in options_elements:
@@ -414,6 +441,12 @@ while True:
                             player.inventory.setdefault(item_id, {'item': item_def, 'qty': 0})
                             player.inventory[item_id]['qty'] += qty
 
+        if game_state != 'editor':
+            if ground_layer_surf:
+                screen.blit(ground_layer_surf, (-camera.camera.x, -camera.camera.y))
+            if object_layer_surf:
+                screen.blit(object_layer_surf, (-camera.camera.x, -camera.camera.y))
+
         for sprite in all_sprites:
             screen.blit(sprite.image, camera.apply(sprite))
         display_hud(player)
@@ -428,7 +461,7 @@ while True:
             for el in options_elements:
                 el.draw(screen)
         elif game_state == 'editor':
-            editor.draw(screen)
+            editor.draw(screen, camera)
             msg_surf = font.render(message, True, GREEN)
             screen.blit(msg_surf, (10, 10))
 
