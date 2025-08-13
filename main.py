@@ -18,7 +18,7 @@ from wall import Wall
 from camera import Camera
 from enemy import Enemy
 from entities.projectile import Projectile
-from ui import Button, InputBox, Label
+from ui import Button, InputBox, Label, AdminPanel
 from ui.chat import Chat
 from ui.hotbar import Hotbar
 from ui.status import StatusUI
@@ -86,6 +86,7 @@ bank_ui = BankUI(bank)
 crafting_ui = CraftingUI(crafting)
 status_ui = None
 skill_editor = None
+admin_ui = None
 weather = Weather()
 ground_layer_surf = None
 object_layer_surf = None
@@ -145,7 +146,7 @@ def set_state(new_state):
 
 def login():
     """Authenticate the user through the network server."""
-    global current_user, message, net_client, other_players
+    global current_user, message, net_client, other_players, admin_ui
     username = username_input.text
     password = password_input.text
     try:
@@ -165,6 +166,8 @@ def login():
             'quests': user_data['characters'][0].get('quests', {}) if user_data else {}
         }
         load_game_world()
+        if is_admin:
+            admin_ui = AdminPanel(net_client, player)
         other_players = {}
         for uname, pos in players.items():
             if uname != username:
@@ -369,6 +372,8 @@ while True:
                 status_ui.handle_event(event)
             if skill_editor:
                 skill_editor.handle_event(event)
+            if admin_ui:
+                admin_ui.handle_event(event)
             if event.type == pygame.KEYDOWN and not chat_ui.active:
                 if event.key == pygame.K_F1 and current_user['is_admin']:
                     set_state('editor')
@@ -384,6 +389,8 @@ while True:
                     status_ui.toggle()
                 elif event.key == pygame.K_F2 and current_user['is_admin'] and skill_editor:
                     skill_editor.toggle()
+                elif event.key == pygame.K_INSERT and current_user['is_admin'] and admin_ui:
+                    admin_ui.toggle()
                 elif event.key == pygame.K_t and other_players and net_client:
                     target = next(iter(other_players.keys()))
                     for item_id, data in list(player.inventory.items()):
@@ -513,6 +520,24 @@ while True:
                 elif action == 'quest':
                     if msg.get('username') == current_user['username']:
                         quest_manager.load_from_dict(msg.get('quests', {}))
+                elif action == 'admin':
+                    cmd = msg.get('command')
+                    if cmd == 'give_item':
+                        if msg.get('target') == current_user['username']:
+                            item_id = msg.get('item_id')
+                            qty = msg.get('qty', 1)
+                            item_def = ITEM_DEFS.get(item_id)
+                            if item_def:
+                                player.inventory.setdefault(item_id, {'item': item_def, 'qty': 0})
+                                player.inventory[item_id]['qty'] += qty
+                    elif cmd == 'spawn_enemy':
+                        ex = msg.get('x', 0)
+                        ey = msg.get('y', 0)
+                        enemy = Enemy(ex, ey)
+                        all_sprites.add(enemy)
+                        enemy_sprites.add(enemy)
+                    elif cmd == 'toggle_weather':
+                        weather.mode = 'night' if weather.mode != 'night' else 'day'
 
         if game_state != 'editor':
             if ground_layer_surf:
@@ -534,6 +559,8 @@ while True:
             status_ui.draw(screen)
         if skill_editor:
             skill_editor.draw(screen)
+        if admin_ui:
+            admin_ui.draw(screen)
         weather.apply(screen)
 
         if game_state == 'options':

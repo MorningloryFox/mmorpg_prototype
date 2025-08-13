@@ -59,6 +59,11 @@ class NetworkClient:
     def send_quest_state(self, quests: Dict[str, bool]) -> None:
         self.send({"action": "quest", "quests": quests})
 
+    def send_admin(self, command: str, **data) -> None:
+        payload = {"action": "admin", "command": command}
+        payload.update(data)
+        self.send(payload)
+
     def get_messages(self) -> List[dict]:
         messages = []
         while not self.incoming.empty():

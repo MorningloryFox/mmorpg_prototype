@@ -3,6 +3,7 @@ import threading
 
 import database as db
 import skills
+import json
 from . import encode, decode
 
 
@@ -16,6 +17,7 @@ class Server:
         self.positions = {}  # username -> {"x": int, "y": int}
         self.classes = {}  # username -> class name
         self.quests = {}  # username -> quest state
+        self.admins = set()
         self.lock = threading.Lock()
 
     def start(self) -> None:
@@ -47,11 +49,14 @@ class Server:
                 self._handle_skill(username, data)
             elif action == "quest" and username:
                 self._handle_quest(username, data)
+            elif action == "admin" and username:
+                self._handle_admin(username, data)
         # client disconnected
         if username:
             with self.lock:
                 self.clients.pop(conn, None)
                 self.positions.pop(username, None)
+                self.admins.discard(username)
             self.broadcast({"action": "leave", "username": username}, exclude=conn)
         conn.close()
 
@@ -66,6 +71,8 @@ class Server:
                 char = user["characters"][0]
                 self.classes[username] = char.get("class", "")
                 self.quests[username] = char.get("quests", {})
+                if user.get("is_admin", False):
+                    self.admins.add(username)
             response = {
                 "action": "login",
                 "status": "ok",
@@ -132,6 +139,23 @@ class Server:
         with self.lock:
             self.quests[username] = quests
         self.broadcast({"action": "quest", "username": username, "quests": quests})
+
+    def _handle_admin(self, username: str, data: dict) -> None:
+        if username not in self.admins:
+            return
+        cmd = data.get("command")
+        if not cmd:
+            return
+        log_entry = {
+            "username": username,
+            "command": cmd,
+        }
+        extra = {k: v for k, v in data.items() if k not in {"action", "command"}}
+        if extra:
+            log_entry.update(extra)
+        with open("admin.log", "a") as f:
+            f.write(json.dumps(log_entry) + "\n")
+        self.broadcast({"action": "admin", **log_entry})
 
     def broadcast(self, message: dict, exclude: socket.socket | None = None) -> None:
         data = encode(message)
