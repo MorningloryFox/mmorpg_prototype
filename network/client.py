@@ -1,8 +1,9 @@
 import socket
 import threading
-import json
 import queue
 from typing import Dict, Tuple, List
+
+from . import encode, decode
 
 
 class NetworkClient:
@@ -18,13 +19,13 @@ class NetworkClient:
         file = self.sock.makefile("r")
         for line in file:
             try:
-                data = json.loads(line)
-            except json.JSONDecodeError:
+                data = decode(line)
+            except Exception:
                 continue
             self.incoming.put(data)
 
     def send(self, message: dict) -> None:
-        self.sock.sendall(json.dumps(message).encode() + b"\n")
+        self.sock.sendall(encode(message))
 
     def login(self, username: str, password: str) -> Tuple[bool, Dict[str, Dict[str, int]], bool]:
         """Attempts to authenticate the user.
@@ -48,6 +49,15 @@ class NetworkClient:
 
     def send_trade(self, target: str, item_id: str, qty: int = 1) -> None:
         self.send({"action": "trade", "target": target, "item_id": item_id, "qty": qty})
+
+    def send_attack(self, atk_type: str, direction: str, x: int | None = None, y: int | None = None, damage: int = 0) -> None:
+        self.send({"action": "attack", "type": atk_type, "dir": direction, "x": x, "y": y, "damage": damage})
+
+    def send_skill(self, skill_name: str) -> None:
+        self.send({"action": "skill", "skill": skill_name})
+
+    def send_quest_state(self, quests: Dict[str, bool]) -> None:
+        self.send({"action": "quest", "quests": quests})
 
     def get_messages(self) -> List[dict]:
         messages = []

@@ -1,8 +1,9 @@
 import socket
 import threading
-import json
 
 import database as db
+import skills
+from . import encode, decode
 
 
 class Server:
@@ -13,6 +14,8 @@ class Server:
         self.port = port
         self.clients = {}  # connection -> username
         self.positions = {}  # username -> {"x": int, "y": int}
+        self.classes = {}  # username -> class name
+        self.quests = {}  # username -> quest state
         self.lock = threading.Lock()
 
     def start(self) -> None:
@@ -28,7 +31,7 @@ class Server:
         username = None
         file = conn.makefile("r")
         for line in file:
-            data = json.loads(line)
+            data = decode(line)
             action = data.get("action")
             if action == "login":
                 username = self._handle_login(conn, data)
@@ -38,6 +41,12 @@ class Server:
                 self.broadcast({"action": "chat", "username": username, "text": data.get("text", "")})
             elif action == "trade" and username:
                 self._handle_trade(username, data)
+            elif action == "attack" and username:
+                self._handle_attack(username, data)
+            elif action == "skill" and username:
+                self._handle_skill(username, data)
+            elif action == "quest" and username:
+                self._handle_quest(username, data)
         # client disconnected
         if username:
             with self.lock:
@@ -54,22 +63,23 @@ class Server:
             with self.lock:
                 self.clients[conn] = username
                 self.positions.setdefault(username, {"x": 0, "y": 0})
+                char = user["characters"][0]
+                self.classes[username] = char.get("class", "")
+                self.quests[username] = char.get("quests", {})
             response = {
                 "action": "login",
                 "status": "ok",
                 "is_admin": user.get("is_admin", False),
                 "players": self.positions,
             }
-            conn.sendall(json.dumps(response).encode() + b"\n")
+            conn.sendall(encode(response))
             # notify others about new player
             self.broadcast(
                 {"action": "join", "username": username, "x": 0, "y": 0},
                 exclude=conn,
             )
             return username
-        conn.sendall(
-            json.dumps({"action": "login", "status": "fail"}).encode() + b"\n"
-        )
+        conn.sendall(encode({"action": "login", "status": "fail"}))
         return None
 
     def _handle_position(self, username: str, data: dict, exclude: socket.socket) -> None:
@@ -92,8 +102,39 @@ class Server:
         }
         self.broadcast(message)
 
+    def _handle_attack(self, username: str, data: dict) -> None:
+        atk_type = data.get("type")
+        if atk_type not in {"melee", "projectile"}:
+            return
+        dmg = int(data.get("damage", 0))
+        msg = {
+            "action": "attack",
+            "username": username,
+            "type": atk_type,
+            "dir": data.get("dir"),
+            "x": data.get("x"),
+            "y": data.get("y"),
+            "damage": dmg,
+        }
+        self.broadcast(msg, exclude=None)
+
+    def _handle_skill(self, username: str, data: dict) -> None:
+        skill_name = data.get("skill")
+        if skill_name not in skills.SKILL_DEFS:
+            return
+        msg = {"action": "skill", "username": username, "skill": skill_name}
+        self.broadcast(msg, exclude=None)
+
+    def _handle_quest(self, username: str, data: dict) -> None:
+        quests = data.get("quests")
+        if not isinstance(quests, dict):
+            return
+        with self.lock:
+            self.quests[username] = quests
+        self.broadcast({"action": "quest", "username": username, "quests": quests})
+
     def broadcast(self, message: dict, exclude: socket.socket | None = None) -> None:
-        data = json.dumps(message).encode() + b"\n"
+        data = encode(message)
         with self.lock:
             for conn in list(self.clients.keys()):
                 if conn is exclude:

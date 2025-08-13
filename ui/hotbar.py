@@ -18,13 +18,20 @@ class Hotbar:
         if 0 <= index < len(self.slots):
             self.slots[index] = skill
 
-    def handle_event(self, event: pygame.event.Event, player, enemies) -> None:
+    def handle_event(self, event: pygame.event.Event, player, enemies):
+        """Handle key presses for skill usage.
+
+        Returns the name of the skill used, if any.
+        """
         if event.type == pygame.KEYDOWN and pygame.K_1 <= event.key <= pygame.K_9:
             index = event.key - pygame.K_1
             if index < len(self.slots):
                 self.selected = index
-                if self.slots[index]:
-                    self.slots[index].use(player, enemies)
+                skill = self.slots[index]
+                if skill:
+                    skill.use(player, enemies)
+                    return skill.name
+        return None
 
     def draw(self, screen: pygame.Surface) -> None:
         total_width = self.slot_size * len(self.slots) + self.margin * (len(self.slots) - 1)

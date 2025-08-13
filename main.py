@@ -330,7 +330,9 @@ while True:
                     el.handle_event(event)
         elif game_state == 'playing':
             chat_ui.handle_event(event, lambda text: send_chat_message(text))
-            hotbar.handle_event(event, player, enemy_sprites)
+            used = hotbar.handle_event(event, player, enemy_sprites)
+            if used and net_client:
+                net_client.send_skill(used)
             shop_ui.handle_event(event, player)
             bank_ui.handle_event(event, player)
             crafting_ui.handle_event(event, player)
@@ -356,10 +358,14 @@ while True:
                             break
                 elif event.key == pygame.K_SPACE:
                     player.melee_attack(enemy_sprites)
+                    if net_client:
+                        net_client.send_attack("melee", player.direction, damage=player.attack)
                 elif event.key == pygame.K_f:
                     proj = Projectile(player.rect.centerx, player.rect.centery, player.direction, wall_sprites, enemy_sprites, player.attack)
                     all_sprites.add(proj)
                     projectile_sprites.add(proj)
+                    if net_client:
+                        net_client.send_attack("projectile", player.direction, player.rect.centerx, player.rect.centery, player.attack)
                 elif event.key == pygame.K_h:
                     area = {'x': player.rect.x - 16, 'y': player.rect.y - 16, 'w': 32, 'h': 32}
                     housing.claim_area(current_user['username'], area)
@@ -402,7 +408,11 @@ while True:
         camera.update(player)
         player.collect_resources(resource_sprites)
         events.check_events(player, quest_manager)
-        db.save_user_quests(current_user['username'], quest_manager.to_dict())
+        quests_state = quest_manager.to_dict()
+        if net_client and quests_state != current_user.get('quests'):
+            net_client.send_quest_state(quests_state)
+            current_user['quests'] = quests_state
+        db.save_user_quests(current_user['username'], quests_state)
         for enemy in enemy_sprites:
             if player.rect.colliderect(enemy.rect):
                 player.take_damage(max(0, enemy.attack - player.defense))
@@ -444,6 +454,25 @@ while True:
                         if item_def:
                             player.inventory.setdefault(item_id, {'item': item_def, 'qty': 0})
                             player.inventory[item_id]['qty'] += qty
+                elif action == 'attack':
+                    uname = msg.get('username')
+                    if uname != current_user['username'] and uname in other_players:
+                        if msg.get('type') == 'melee':
+                            other_players[uname].melee_attack(enemy_sprites)
+                        elif msg.get('type') == 'projectile':
+                            proj = Projectile(msg.get('x'), msg.get('y'), msg.get('dir'), wall_sprites, enemy_sprites, msg.get('damage', 0))
+                            all_sprites.add(proj)
+                            projectile_sprites.add(proj)
+                elif action == 'skill':
+                    uname = msg.get('username')
+                    if uname != current_user['username'] and uname in other_players:
+                        for sk in other_players[uname].skills:
+                            if sk.name == msg.get('skill'):
+                                sk.use(other_players[uname], enemy_sprites)
+                                break
+                elif action == 'quest':
+                    if msg.get('username') == current_user['username']:
+                        quest_manager.load_from_dict(msg.get('quests', {}))
 
         if game_state != 'editor':
             if ground_layer_surf:
