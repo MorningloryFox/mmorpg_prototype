@@ -18,6 +18,13 @@ class Server:
         self.classes = {}  # username -> class name
         self.quests = {}  # username -> quest state
         self.admins = set()
+        # extra state for admin panel
+        self.client_ips: dict[str, str] = {}
+        self.client_ids: dict[str, int] = {}
+        self.next_id = 1
+        self.banned = set()
+        self.muted = set()
+        self.logs: list[str] = []
         self.lock = threading.Lock()
 
     def start(self) -> None:
@@ -26,21 +33,30 @@ class Server:
         sock.listen()
         print(f"Server listening on {self.host}:{self.port}")
         while True:
-            conn, _ = sock.accept()
-            threading.Thread(target=self.handle_client, args=(conn,), daemon=True).start()
+            conn, addr = sock.accept()
+            threading.Thread(
+                target=self.handle_client, args=(conn, addr), daemon=True
+            ).start()
 
-    def handle_client(self, conn: socket.socket) -> None:
+    def handle_client(self, conn: socket.socket, addr: tuple[str, int]) -> None:
         username = None
         file = conn.makefile("r")
         for line in file:
             data = decode(line)
             action = data.get("action")
             if action == "login":
-                username = self._handle_login(conn, data)
+                username = self._handle_login(conn, addr, data)
             elif action == "pos" and username:
                 self._handle_position(username, data, exclude=conn)
             elif action == "chat" and username:
-                self.broadcast({"action": "chat", "username": username, "text": data.get("text", "")})
+                if username not in self.muted:
+                    self.broadcast(
+                        {
+                            "action": "chat",
+                            "username": username,
+                            "text": data.get("text", ""),
+                        }
+                    )
             elif action == "trade" and username:
                 self._handle_trade(username, data)
             elif action == "attack" and username:
@@ -56,18 +72,28 @@ class Server:
             with self.lock:
                 self.clients.pop(conn, None)
                 self.positions.pop(username, None)
+                self.client_ips.pop(username, None)
+                self.client_ids.pop(username, None)
                 self.admins.discard(username)
             self.broadcast({"action": "leave", "username": username}, exclude=conn)
         conn.close()
 
-    def _handle_login(self, conn: socket.socket, data: dict) -> str | None:
+    def _handle_login(
+        self, conn: socket.socket, addr: tuple[str, int], data: dict
+    ) -> str | None:
         username = data.get("username", "")
         password = data.get("password", "")
+        if username in self.banned:
+            conn.sendall(encode({"action": "login", "status": "banned"}))
+            return None
         user = db.get_user(username)
         if user and db.verify_password(user["password"], password):
             with self.lock:
                 self.clients[conn] = username
                 self.positions.setdefault(username, {"x": 0, "y": 0})
+                self.client_ips[username] = addr[0]
+                self.client_ids[username] = self.next_id
+                self.next_id += 1
                 char = user["characters"][0]
                 self.classes[username] = char.get("class", "")
                 self.quests[username] = char.get("quests", {})
@@ -80,11 +106,11 @@ class Server:
                 "players": self.positions,
             }
             conn.sendall(encode(response))
-            # notify others about new player
             self.broadcast(
                 {"action": "join", "username": username, "x": 0, "y": 0},
                 exclude=conn,
             )
+            self.log(f"{username} connected from {addr[0]}")
             return username
         conn.sendall(encode({"action": "login", "status": "fail"}))
         return None
@@ -156,6 +182,40 @@ class Server:
         with open("admin.log", "a") as f:
             f.write(json.dumps(log_entry) + "\n")
         self.broadcast({"action": "admin", **log_entry})
+
+    # ---- admin panel helpers ----
+
+    def send_global(self, text: str) -> None:
+        self.broadcast({"action": "chat", "username": "[SERVER]", "text": text})
+        self.log(f"GLOBAL: {text}")
+
+    def kick(self, username: str) -> None:
+        with self.lock:
+            conn = next((c for c, u in self.clients.items() if u == username), None)
+        if conn:
+            try:
+                conn.close()
+            except OSError:
+                pass
+            self.log(f"Kicked {username}")
+
+    def ban(self, username: str) -> None:
+        self.banned.add(username)
+        self.kick(username)
+        self.log(f"Banned {username}")
+
+    def mute(self, username: str) -> None:
+        self.muted.add(username)
+        self.log(f"Muted {username}")
+
+    def teleport(self, username: str, x: int, y: int) -> None:
+        self.broadcast({"action": "teleport", "username": username, "x": x, "y": y})
+        self.log(f"Teleported {username} to {x},{y}")
+
+    def log(self, message: str) -> None:
+        with self.lock:
+            self.logs.append(message)
+        print(message)
 
     def broadcast(self, message: dict, exclude: socket.socket | None = None) -> None:
         data = encode(message)
