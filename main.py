@@ -22,8 +22,10 @@ from ui.chat import Chat
 from ui.hotbar import Hotbar
 from shop import Shop
 from bank import Bank
+from crafting import Crafting
 from ui.shop import ShopUI
 from ui.bank import BankUI
+from ui.crafting import CraftingUI
 from editor import Editor
 import database as db
 from network.client import NetworkClient
@@ -46,8 +48,10 @@ hotbar = Hotbar()
 quest_manager = QuestManager()
 shop = Shop()
 bank = Bank()
+crafting = Crafting()
 shop_ui = ShopUI(shop)
 bank_ui = BankUI(bank)
+crafting_ui = CraftingUI(crafting)
 
 # --- Load UI Assets ---
 login_panel_img = pygame.image.load("data/Wenrexa/Wenrexa Interface UI KIT #4/PNG/Panel02.png").convert_alpha()
@@ -268,6 +272,7 @@ while True:
             hotbar.handle_event(event)
             shop_ui.handle_event(event, player)
             bank_ui.handle_event(event, player)
+            crafting_ui.handle_event(event, player)
             if event.type == pygame.KEYDOWN and not chat_ui.active:
                 if event.key == pygame.K_F1 and current_user['is_admin']:
                     set_state('editor')
@@ -277,6 +282,8 @@ while True:
                     shop_ui.toggle()
                 elif event.key == pygame.K_b:
                     bank_ui.toggle()
+                elif event.key == pygame.K_c:
+                    crafting_ui.toggle()
                 elif event.key == pygame.K_t and other_players and net_client:
                     target = next(iter(other_players.keys()))
                     for item_id, data in list(player.inventory.items()):
@@ -379,6 +386,7 @@ while True:
         chat_ui.draw(screen)
         shop_ui.draw(screen)
         bank_ui.draw(screen)
+        crafting_ui.draw(screen)
 
         if game_state == 'options':
             screen.blit(login_panel_img, (panel_x, panel_y))
