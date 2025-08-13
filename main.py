@@ -12,6 +12,7 @@ from enemy import Enemy
 from ui import Button, InputBox, Label
 from editor import Editor
 import database as db
+from network.client import NetworkClient
 
 # --- Game Setup ---
 pygame.init()
@@ -24,6 +25,8 @@ font = pygame.font.Font(None, 36)
 game_state = 'login'
 current_user = None
 message = ''
+net_client = None
+other_players = {}
 
 # --- Load UI Assets ---
 login_panel_img = pygame.image.load("data/Wenrexa/Wenrexa Interface UI KIT #4/PNG/Panel02.png").convert_alpha()
@@ -77,14 +80,31 @@ def set_state(new_state):
     message = ''
 
 def login():
-    global current_user, message
+    """Authenticate the user through the network server."""
+    global current_user, message, net_client, other_players
     username = username_input.text
     password = password_input.text
-    user_data = db.get_user(username)
-    if user_data and db.verify_password(user_data['password'], password):
-        current_user = {'username': username, 'is_admin': user_data['is_admin']}
+    try:
+        if not net_client:
+            net_client = NetworkClient()
+        success, players, is_admin = net_client.login(username, password)
+    except Exception:
+        message = 'Connection failed'
+        return
+
+    if success:
+        current_user = {'username': username, 'is_admin': is_admin}
         load_game_world()
+        other_players = {}
+        for uname, pos in players.items():
+            if uname != username:
+                op = Player(pos['x'], pos['y'])
+                op.name = uname
+                all_sprites.add(op)
+                other_players[uname] = op
         set_state('playing')
+        # send initial position to server
+        net_client.update_position(player.rect.x, player.rect.y)
     else:
         message = 'Invalid username or password'
 
@@ -220,11 +240,39 @@ while True:
     elif game_state == 'playing' or game_state == 'options' or game_state == 'editor':
         # Draw the game world in the background for these states
         all_sprites.update()
-        if game_state != 'options': # Don't move player in options menu
+        if game_state != 'options':  # Don't move player in options menu
             keys = pygame.key.get_pressed()
             player.move(keys, wall_sprites, enemy_sprites)
         camera.update(player)
         player.collect_resources(resource_sprites)
+
+        if game_state == 'playing' and net_client:
+            net_client.update_position(player.rect.x, player.rect.y)
+            for msg in net_client.get_messages():
+                action = msg.get('action')
+                if action == 'pos':
+                    uname = msg.get('username')
+                    if uname != current_user['username']:
+                        if uname not in other_players:
+                            op = Player(msg.get('x', 0), msg.get('y', 0))
+                            op.name = uname
+                            all_sprites.add(op)
+                            other_players[uname] = op
+                        else:
+                            other_players[uname].rect.x = msg.get('x', 0)
+                            other_players[uname].rect.y = msg.get('y', 0)
+                elif action == 'join':
+                    uname = msg.get('username')
+                    if uname != current_user['username'] and uname not in other_players:
+                        op = Player(msg.get('x', 0), msg.get('y', 0))
+                        op.name = uname
+                        all_sprites.add(op)
+                        other_players[uname] = op
+                elif action == 'leave':
+                    uname = msg.get('username')
+                    if uname in other_players:
+                        other_players[uname].kill()
+                        del other_players[uname]
 
         for sprite in all_sprites:
             screen.blit(sprite.image, camera.apply(sprite))
