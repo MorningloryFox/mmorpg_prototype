@@ -9,6 +9,7 @@ from resource import Resource
 from wall import Wall
 from camera import Camera
 from enemy import Enemy
+from entities.projectile import Projectile
 from ui import Button, InputBox, Label
 from ui.chat import Chat
 from ui.hotbar import Hotbar
@@ -74,6 +75,7 @@ camera = None
 wall_sprites = None
 enemy_sprites = None
 resource_sprites = None
+projectile_sprites = None
 inventory_panel_img = None
 resource_icon_img = None
 editor = Editor()
@@ -123,7 +125,7 @@ def create_account():
         message = 'Username already exists.'
 
 def load_game_world():
-    global all_sprites, player, camera, wall_sprites, enemy_sprites, resource_sprites, inventory_panel_img, resource_icon_img
+    global all_sprites, player, camera, wall_sprites, enemy_sprites, resource_sprites, projectile_sprites, inventory_panel_img, resource_icon_img
     
     inventory_panel_img = pygame.image.load("data/Wenrexa/Wenrexa Interface UI KIT #4/PNG/Panel01.png").convert_alpha()
     inventory_panel_img = pygame.transform.scale(inventory_panel_img, (250, 180))
@@ -134,6 +136,7 @@ def load_game_world():
     wall_sprites = pygame.sprite.Group()
     enemy_sprites = pygame.sprite.Group()
     resource_sprites = pygame.sprite.Group()
+    projectile_sprites = pygame.sprite.Group()
 
     with open("map.txt", 'r') as f:
         map_data = f.readlines()
@@ -224,6 +227,12 @@ while True:
                     set_state('editor')
                 elif event.key == pygame.K_ESCAPE:
                     set_state('options')
+                elif event.key == pygame.K_SPACE:
+                    player.melee_attack(enemy_sprites)
+                elif event.key == pygame.K_f:
+                    proj = Projectile(player.rect.centerx, player.rect.centery, player.direction, wall_sprites, enemy_sprites, player.attack)
+                    all_sprites.add(proj)
+                    projectile_sprites.add(proj)
         elif game_state == 'editor':
             editor.handle_event(event, all_sprites, wall_sprites, camera)
             if event.type == pygame.KEYDOWN:
@@ -261,6 +270,9 @@ while True:
             player.move(keys, wall_sprites, enemy_sprites)
         camera.update(player)
         player.collect_resources(resource_sprites)
+        for enemy in enemy_sprites:
+            if player.rect.colliderect(enemy.rect):
+                player.take_damage(max(0, enemy.attack - player.defense))
 
         if game_state == 'playing' and net_client:
             net_client.update_position(player.rect.x, player.rect.y)

@@ -11,15 +11,25 @@ class Player(pygame.sprite.Sprite):
         
         self.image = self.idle_image
         self.rect = self.image.get_rect(center=(x, y))
-        
+
         self.speed = 5
         self.name = "Player"
         self.health = 100
         self.max_health = 100
+        self.attack = 15
+        self.defense = 5
         self.inventory = {}
         self.max_inventory_slots = 10
         self.moving = False
         self.direction = "right"
+        self.hit_timer = 0
+        self.damage_cooldown = 0
+        try:
+            self.attack_sound = pygame.mixer.Sound("sounds/attack.wav")
+            self.hit_sound = pygame.mixer.Sound("sounds/hit.wav")
+        except pygame.error:
+            self.attack_sound = None
+            self.hit_sound = None
 
     def move(self, keys, walls, enemies):
         self.moving = False
@@ -58,6 +68,10 @@ class Player(pygame.sprite.Sprite):
                 if dy < 0: # Moving up
                     self.rect.top = sprite.rect.bottom
 
+        # Reduce damage cooldown timer
+        if self.damage_cooldown > 0:
+            self.damage_cooldown -= 1
+
     def update_animation(self):
         if not self.moving:
             self.image = self.idle_image
@@ -81,3 +95,35 @@ class Player(pygame.sprite.Sprite):
                 else:
                     if len(self.inventory) < self.max_inventory_slots:
                         self.inventory[resource_type] = 1
+
+    def melee_attack(self, enemies):
+        """Perform a melee attack in front of the player."""
+        if self.attack_sound:
+            self.attack_sound.play()
+        attack_rect = self.rect.copy()
+        if self.direction == "left":
+            attack_rect.x -= self.rect.width
+        else:
+            attack_rect.x += self.rect.width
+        for enemy in enemies:
+            if attack_rect.colliderect(enemy.rect):
+                damage = max(0, self.attack - enemy.defense)
+                enemy.take_damage(damage)
+
+    def take_damage(self, dmg):
+        """Apply damage to the player with cooldown and hit effect."""
+        if self.damage_cooldown > 0:
+            return
+        self.health -= dmg
+        if self.hit_sound:
+            self.hit_sound.play()
+        self.hit_timer = 5
+        self.damage_cooldown = 30
+        if self.health <= 0:
+            self.kill()
+
+    def update(self):
+        self.update_animation()
+        if self.hit_timer > 0:
+            self.hit_timer -= 1
+            self.image.fill((255, 0, 0), special_flags=pygame.BLEND_RGBA_ADD)
