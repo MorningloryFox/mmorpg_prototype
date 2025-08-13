@@ -9,6 +9,8 @@ from .skill_editor import SkillEditor
 from .npc_editor import NPCEditor
 from .shop_editor import ShopEditor
 from .item_editor import ItemEditor
+from .dialogue_editor import DialogueEditor
+from .dialogue import DialogueUI
 from .admin import AdminPanel
 
 __all__ = [
@@ -25,5 +27,7 @@ __all__ = [
     "NPCEditor",
     "ShopEditor",
     "ItemEditor",
+    "DialogueEditor",
+    "DialogueUI",
     "AdminPanel",
 ]

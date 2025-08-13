@@ -1,0 +1,20 @@
+{
+  "npc1": {
+    "start": "greeting",
+    "nodes": {
+      "greeting": {
+        "text": "Hello traveler!",
+        "options": [
+          {"text": "Hi", "next": "ask"},
+          {"text": "Bye", "next": null}
+        ]
+      },
+      "ask": {
+        "text": "What brings you here?",
+        "options": [
+          {"text": "Just exploring", "next": null}
+        ]
+      }
+    }
+  }
+}

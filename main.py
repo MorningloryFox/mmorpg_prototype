@@ -18,7 +18,17 @@ from wall import Wall
 from camera import Camera
 from enemy import Enemy
 from entities.projectile import Projectile
-from ui import Button, InputBox, Label, AdminPanel, NPCEditor, ShopEditor, ItemEditor
+from ui import (
+    Button,
+    InputBox,
+    Label,
+    AdminPanel,
+    NPCEditor,
+    ShopEditor,
+    ItemEditor,
+    DialogueEditor,
+    DialogueUI,
+)
 from ui.chat import Chat
 from ui.hotbar import Hotbar
 from ui.status import StatusUI
@@ -90,6 +100,8 @@ shop_editor = None
 skill_editor = None
 admin_ui = None
 item_editor = None
+dialogue_editor = None
+dialogue_ui = None
 weather = Weather()
 ground_layer_surf = None
 object_layer_surf = None
@@ -170,7 +182,7 @@ def login():
         }
         load_game_world()
         if is_admin:
-            admin_ui = AdminPanel(net_client, player, npc_editor, shop_editor, item_editor)
+            admin_ui = AdminPanel(net_client, player, npc_editor, shop_editor, item_editor, dialogue_editor)
         other_players = {}
         for uname, pos in players.items():
             if uname != username:
@@ -196,7 +208,7 @@ def create_account():
         message = 'Username already exists.'
 
 def load_game_world():
-    global all_sprites, player, camera, wall_sprites, enemy_sprites, resource_sprites, projectile_sprites, inventory_panel_img, resource_icon_img, quest_manager, ground_layer_surf, object_layer_surf, status_ui, skill_editor, npc_editor, shop_editor, item_editor
+    global all_sprites, player, camera, wall_sprites, enemy_sprites, resource_sprites, projectile_sprites, inventory_panel_img, resource_icon_img, quest_manager, ground_layer_surf, object_layer_surf, status_ui, skill_editor, npc_editor, shop_editor, item_editor, dialogue_editor, dialogue_ui
 
     inventory_panel_img = pygame.image.load("data/Wenrexa/Wenrexa Interface UI KIT #4/PNG/Panel01.png").convert_alpha()
     inventory_panel_img = pygame.transform.scale(inventory_panel_img, (250, 180))
@@ -286,6 +298,8 @@ def load_game_world():
     npc_editor = NPCEditor()
     shop_editor = ShopEditor()
     item_editor = ItemEditor()
+    dialogue_editor = DialogueEditor()
+    dialogue_ui = DialogueUI()
     quest_manager = QuestManager()
     quest_manager.load_from_dict(current_user.get('quests', {}))
     all_sprites.add(player)
@@ -384,6 +398,10 @@ while True:
                 shop_editor.handle_event(event)
             if item_editor:
                 item_editor.handle_event(event)
+            if dialogue_editor:
+                dialogue_editor.handle_event(event)
+            if dialogue_ui:
+                dialogue_ui.handle_event(event)
             if admin_ui:
                 admin_ui.handle_event(event)
             if event.type == pygame.KEYDOWN and not chat_ui.active:
@@ -403,6 +421,8 @@ while True:
                     skill_editor.toggle()
                 elif event.key == pygame.K_INSERT and current_user['is_admin'] and admin_ui:
                     admin_ui.toggle()
+                elif event.key == pygame.K_g and dialogue_ui:
+                    dialogue_ui.start('npc1')
                 elif event.key == pygame.K_t and other_players and net_client:
                     target = next(iter(other_players.keys()))
                     for item_id, data in list(player.inventory.items()):
@@ -577,6 +597,10 @@ while True:
             shop_editor.draw(screen)
         if item_editor:
             item_editor.draw(screen)
+        if dialogue_editor:
+            dialogue_editor.draw(screen)
+        if dialogue_ui:
+            dialogue_ui.draw(screen)
         if admin_ui:
             admin_ui.draw(screen)
         weather.apply(screen)
