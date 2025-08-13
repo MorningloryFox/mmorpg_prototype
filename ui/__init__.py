@@ -7,6 +7,7 @@ from .crafting import CraftingUI
 from .status import StatusUI
 from .skill_editor import SkillEditor
 from .npc_editor import NPCEditor
+from .shop_editor import ShopEditor
 from .admin import AdminPanel
 
 __all__ = [
@@ -21,5 +22,6 @@ __all__ = [
     "StatusUI",
     "SkillEditor",
     "NPCEditor",
+    "ShopEditor",
     "AdminPanel",
 ]

@@ -1,22 +1,31 @@
 import json
-from item import ITEM_DEFS, Item
+from item import ITEM_DEFS
+
+try:
+    with open("shops.json", "r") as f:
+        SHOPS = json.load(f)
+except FileNotFoundError:
+    SHOPS = {}
+
+
+def save_shops() -> None:
+    """Persist shop definitions to disk."""
+    with open("shops.json", "w") as f:
+        json.dump(SHOPS, f, indent=2)
 
 
 class Shop:
     """Simple shop for buying and selling items using gold."""
 
-    def __init__(self, stock_path: str | None = None):
-        if stock_path:
-            with open(stock_path, "r") as f:
-                self.stock = json.load(f)
-        else:
-            self.stock = {"sword": {"price": 50}, "potion": {"price": 10}}
+    def __init__(self, shop_id: str = "general"):
+        self.shop_id = shop_id
+        self.stock = SHOPS.get(shop_id, [])
 
     def buy(self, player, item_id: str) -> bool:
-        data = self.stock.get(item_id)
-        if not data:
+        entry = next((e for e in self.stock if e.get("id") == item_id), None)
+        if not entry:
             return False
-        price = data.get("price", 0)
+        price = entry.get("buy", 0)
         if player.gold < price:
             return False
         item_def = ITEM_DEFS.get(item_id)
@@ -34,7 +43,10 @@ class Shop:
     def sell(self, player, item_id: str) -> bool:
         if item_id not in player.inventory:
             return False
-        price = self.stock.get(item_id, {}).get("price", 0) // 2
+        entry = next((e for e in self.stock if e.get("id") == item_id), None)
+        price = 0
+        if entry:
+            price = entry.get("sell", entry.get("buy", 0) // 2)
         player.inventory[item_id]["qty"] -= 1
         if player.inventory[item_id]["qty"] <= 0:
             del player.inventory[item_id]

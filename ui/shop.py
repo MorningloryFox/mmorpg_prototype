@@ -19,9 +19,8 @@ class ShopUI:
         if event.type == pygame.KEYDOWN:
             if pygame.K_1 <= event.key <= pygame.K_9:
                 index = event.key - pygame.K_1
-                item_ids = list(self.shop.stock.keys())
-                if index < len(item_ids):
-                    self.shop.buy(player, item_ids[index])
+                if index < len(self.shop.stock):
+                    self.shop.buy(player, self.shop.stock[index]["id"])
             elif event.key == pygame.K_ESCAPE:
                 self.toggle()
 
@@ -33,7 +32,9 @@ class ShopUI:
         panel.set_alpha(200)
         screen.blit(panel, ((SCREEN_WIDTH - 300) // 2, (SCREEN_HEIGHT - 200) // 2))
         y = (SCREEN_HEIGHT - 160) // 2
-        for i, (item_id, data) in enumerate(self.shop.stock.items(), start=1):
-            text = self.font.render(f"{i}. {item_id} - {data['price']}g", True, WHITE)
+        for i, entry in enumerate(self.shop.stock, start=1):
+            text = self.font.render(
+                f"{i}. {entry['id']} - {entry.get('buy',0)}g", True, WHITE
+            )
             screen.blit(text, ((SCREEN_WIDTH - 280) // 2, y))
             y += 20
