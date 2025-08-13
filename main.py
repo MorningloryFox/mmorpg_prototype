@@ -10,6 +10,7 @@ from resource import Resource
 from quest import QuestManager, Quest
 from item import ITEM_DEFS
 import events
+import housing
 
 with open('classes.json', 'r') as f:
     CLASS_DEFS = json.load(f)
@@ -29,6 +30,34 @@ from ui.crafting import CraftingUI
 from editor import Editor
 import database as db
 from network.client import NetworkClient
+
+
+class Weather:
+    """Simple day/night cycle with optional rain."""
+
+    def __init__(self):
+        self.mode = 'day'
+        self.timer = 0
+
+    def update(self):
+        self.timer += 1
+        if self.timer > 60 * 10:  # switch every ~10 seconds
+            self.mode = random.choice(['day', 'night', 'rain'])
+            self.timer = 0
+
+    def apply(self, surface):
+        if self.mode == 'night':
+            overlay = pygame.Surface(surface.get_size(), pygame.SRCALPHA)
+            overlay.fill((0, 0, 50, 150))
+            surface.blit(overlay, (0, 0))
+        elif self.mode == 'rain':
+            overlay = pygame.Surface(surface.get_size(), pygame.SRCALPHA)
+            overlay.fill((0, 0, 0, 100))
+            surface.blit(overlay, (0, 0))
+            for _ in range(50):
+                x = random.randrange(SCREEN_WIDTH)
+                y = random.randrange(SCREEN_HEIGHT)
+                pygame.draw.line(surface, (180, 180, 255), (x, y), (x + 2, y + 10))
 
 # --- Game Setup ---
 pygame.init()
@@ -52,6 +81,7 @@ crafting = Crafting()
 shop_ui = ShopUI(shop)
 bank_ui = BankUI(bank)
 crafting_ui = CraftingUI(crafting)
+weather = Weather()
 
 # --- Load UI Assets ---
 login_panel_img = pygame.image.load("data/Wenrexa/Wenrexa Interface UI KIT #4/PNG/Panel02.png").convert_alpha()
@@ -299,6 +329,9 @@ while True:
                     proj = Projectile(player.rect.centerx, player.rect.centery, player.direction, wall_sprites, enemy_sprites, player.attack)
                     all_sprites.add(proj)
                     projectile_sprites.add(proj)
+                elif event.key == pygame.K_h:
+                    area = {'x': player.rect.x - 16, 'y': player.rect.y - 16, 'w': 32, 'h': 32}
+                    housing.claim_area(current_user['username'], area)
         elif game_state == 'editor':
             editor.handle_event(event, all_sprites, wall_sprites, camera)
             if event.type == pygame.KEYDOWN:
@@ -331,6 +364,7 @@ while True:
     elif game_state == 'playing' or game_state == 'options' or game_state == 'editor':
         # Draw the game world in the background for these states
         all_sprites.update()
+        weather.update()
         if game_state != 'options' and not chat_ui.active:  # Don't move player in options menu or while chatting
             keys = pygame.key.get_pressed()
             player.move(keys, wall_sprites, enemy_sprites)
@@ -387,6 +421,7 @@ while True:
         shop_ui.draw(screen)
         bank_ui.draw(screen)
         crafting_ui.draw(screen)
+        weather.apply(screen)
 
         if game_state == 'options':
             screen.blit(login_panel_img, (panel_x, panel_y))

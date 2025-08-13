@@ -3,6 +3,27 @@ import pygame
 from settings import *
 from item import ITEM_DEFS, Item
 
+
+class Party:
+    """Simple party grouping players together."""
+
+    def __init__(self, leader: "Player") -> None:
+        self.leader = leader
+        self.members = [leader]
+
+    def add_member(self, player: "Player") -> None:
+        if player not in self.members:
+            self.members.append(player)
+            player.party = self
+
+    def remove_member(self, player: "Player") -> None:
+        if player in self.members:
+            self.members.remove(player)
+            player.party = None
+            if self.leader == player and self.members:
+                self.leader = self.members[0]
+
+
 class Player(pygame.sprite.Sprite):
     def __init__(self, x, y):
         super().__init__()
@@ -26,7 +47,7 @@ class Player(pygame.sprite.Sprite):
         self.max_inventory_slots = 10
         self.gold = 0
         self.character_class = None
-        self.party = None  # placeholder for party system
+        self.party = None
         self.quests = {}
         self.moving = False
         self.direction = "right"
@@ -107,6 +128,21 @@ class Player(pygame.sprite.Sprite):
                     if len(self.inventory) < self.max_inventory_slots:
                         self.inventory[item_id] = {'item': item_def, 'qty': 1}
                 self.add_xp(5)
+
+    # --- Party Management ---
+
+    def create_party(self) -> Party:
+        if not self.party:
+            self.party = Party(self)
+        return self.party
+
+    def join_party(self, party: Party) -> None:
+        if party:
+            party.add_member(self)
+
+    def leave_party(self) -> None:
+        if self.party:
+            self.party.remove_member(self)
 
     def melee_attack(self, enemies):
         """Perform a melee attack in front of the player."""
