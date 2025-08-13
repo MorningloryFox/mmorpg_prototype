@@ -1,32 +1,62 @@
 {
   "Warrior": {
-    "type": "melee_physical",
-    "base_stats": {"health": 120, "attack": 15, "defense": 10, "magic": 0},
-    "abilities": ["Slash", "Shield Block"]
+    "sprite": "data/Bot/Bot Wheel/static idle.png",
+    "start_items": ["sword"],
+    "base_stats": {"health": 120, "attack": 15, "defense": 10, "strength": 10, "constitution": 8, "intelligence": 4, "dexterity": 6, "luck": 0, "crit": 0},
+    "growth": {"strength": 1.1, "constitution": 1.0, "intelligence": 0.4, "dexterity": 0.6, "luck": 0.2, "crit": 0.3},
+    "abilities": [
+      {"name": "Slash", "unlock": 1},
+      {"name": "Shield Block", "unlock": 5}
+    ]
   },
   "Battlemage": {
-    "type": "melee_magic",
-    "base_stats": {"health": 100, "attack": 10, "defense": 8, "magic": 10},
-    "abilities": ["Arcane Strike", "Mana Shield"]
+    "sprite": "data/Bot/Bot Wheel/static idle.png",
+    "start_items": ["potion"],
+    "base_stats": {"health": 100, "attack": 10, "defense": 8, "strength": 6, "constitution": 7, "intelligence": 10, "dexterity": 5, "luck": 0, "crit": 0},
+    "growth": {"intelligence": 1.1, "constitution": 1.0, "strength": 0.6, "dexterity": 0.5, "luck": 0.2, "crit": 0.3},
+    "abilities": [
+      {"name": "Arcane Strike", "unlock": 1},
+      {"name": "Mana Shield", "unlock": 5}
+    ]
   },
   "Archer": {
-    "type": "ranged_physical",
-    "base_stats": {"health": 90, "attack": 12, "defense": 5, "magic": 0},
-    "abilities": ["Arrow Shot", "Multi Shot"]
+    "sprite": "data/Bot/Bot Wheel/static idle.png",
+    "start_items": ["sword"],
+    "base_stats": {"health": 90, "attack": 12, "defense": 5, "strength": 5, "constitution": 6, "intelligence": 4, "dexterity": 10, "luck": 0, "crit": 0},
+    "growth": {"dexterity": 1.1, "constitution": 0.9, "strength": 0.6, "intelligence": 0.4, "luck": 0.2, "crit": 0.3},
+    "abilities": [
+      {"name": "Arrow Shot", "unlock": 1},
+      {"name": "Multi Shot", "unlock": 5}
+    ]
   },
   "Sorcerer": {
-    "type": "ranged_magic",
-    "base_stats": {"health": 80, "attack": 5, "defense": 4, "magic": 15},
-    "abilities": ["Fireball", "Ice Bolt"]
+    "sprite": "data/Bot/Bot Wheel/static idle.png",
+    "start_items": ["potion"],
+    "base_stats": {"health": 80, "attack": 5, "defense": 4, "strength": 4, "constitution": 5, "intelligence": 12, "dexterity": 5, "luck": 0, "crit": 0},
+    "growth": {"intelligence": 1.1, "constitution": 0.9, "strength": 0.4, "dexterity": 0.5, "luck": 0.2, "crit": 0.3},
+    "abilities": [
+      {"name": "Fireball", "unlock": 1},
+      {"name": "Ice Bolt", "unlock": 5}
+    ]
   },
   "Bard": {
-    "type": "support_physical",
-    "base_stats": {"health": 85, "attack": 8, "defense": 5, "magic": 5},
-    "abilities": ["Inspiring Tune", "Distracting Chord"]
+    "sprite": "data/Bot/Bot Wheel/static idle.png",
+    "start_items": ["potion"],
+    "base_stats": {"health": 85, "attack": 8, "defense": 5, "strength": 5, "constitution": 5, "intelligence": 6, "dexterity": 6, "luck": 0, "crit": 0},
+    "growth": {"dexterity": 1.0, "intelligence": 1.0, "strength": 0.6, "constitution": 0.6, "luck": 0.3, "crit": 0.3},
+    "abilities": [
+      {"name": "Inspiring Tune", "unlock": 1},
+      {"name": "Distracting Chord", "unlock": 5}
+    ]
   },
   "Priest": {
-    "type": "support_magic",
-    "base_stats": {"health": 90, "attack": 4, "defense": 4, "magic": 12},
-    "abilities": ["Heal", "Blessing"]
+    "sprite": "data/Bot/Bot Wheel/static idle.png",
+    "start_items": ["potion"],
+    "base_stats": {"health": 90, "attack": 4, "defense": 4, "strength": 4, "constitution": 6, "intelligence": 10, "dexterity": 5, "luck": 0, "crit": 0},
+    "growth": {"intelligence": 1.1, "constitution": 1.0, "strength": 0.4, "dexterity": 0.5, "luck": 0.2, "crit": 0.3},
+    "abilities": [
+      {"name": "Heal", "unlock": 1},
+      {"name": "Blessing", "unlock": 5}
+    ]
   }
 }

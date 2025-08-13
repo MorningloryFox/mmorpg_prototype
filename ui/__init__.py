@@ -4,6 +4,8 @@ from .hotbar import Hotbar
 from .shop import ShopUI
 from .bank import BankUI
 from .crafting import CraftingUI
+from .status import StatusUI
+from .skill_editor import SkillEditor
 
 __all__ = [
     "Button",
@@ -14,4 +16,6 @@ __all__ = [
     "ShopUI",
     "BankUI",
     "CraftingUI",
+    "StatusUI",
+    "SkillEditor",
 ]

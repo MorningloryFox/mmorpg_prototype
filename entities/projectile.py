@@ -4,7 +4,7 @@ import pygame
 class Projectile(pygame.sprite.Sprite):
     """Simple horizontal projectile that deals damage on impact."""
 
-    def __init__(self, x, y, direction, walls, enemies, damage=10, speed=10):
+    def __init__(self, x, y, direction, walls, enemies, damage=10, speed=10, owner=None):
         super().__init__()
         self.image = pygame.Surface((10, 4))
         self.image.fill((255, 255, 0))
@@ -12,6 +12,7 @@ class Projectile(pygame.sprite.Sprite):
         self.direction = direction
         self.speed = speed if direction == "right" else -speed
         self.damage = damage
+        self.owner = owner
         self.walls = walls
         self.enemies = enemies
 
@@ -24,6 +25,6 @@ class Projectile(pygame.sprite.Sprite):
                 return
         for enemy in list(self.enemies):
             if self.rect.colliderect(enemy.rect):
-                enemy.take_damage(max(0, self.damage - enemy.defense))
+                enemy.take_damage(max(0, self.damage - enemy.defense), self.owner)
                 self.kill()
                 return

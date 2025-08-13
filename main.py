@@ -21,6 +21,8 @@ from entities.projectile import Projectile
 from ui import Button, InputBox, Label
 from ui.chat import Chat
 from ui.hotbar import Hotbar
+from ui.status import StatusUI
+from ui.skill_editor import SkillEditor
 from shop import Shop
 from bank import Bank
 from crafting import Crafting
@@ -82,6 +84,8 @@ crafting = Crafting()
 shop_ui = ShopUI(shop)
 bank_ui = BankUI(bank)
 crafting_ui = CraftingUI(crafting)
+status_ui = None
+skill_editor = None
 weather = Weather()
 ground_layer_surf = None
 object_layer_surf = None
@@ -186,7 +190,7 @@ def create_account():
         message = 'Username already exists.'
 
 def load_game_world():
-    global all_sprites, player, camera, wall_sprites, enemy_sprites, resource_sprites, projectile_sprites, inventory_panel_img, resource_icon_img, quest_manager, ground_layer_surf, object_layer_surf
+    global all_sprites, player, camera, wall_sprites, enemy_sprites, resource_sprites, projectile_sprites, inventory_panel_img, resource_icon_img, quest_manager, ground_layer_surf, object_layer_surf, status_ui, skill_editor
 
     inventory_panel_img = pygame.image.load("data/Wenrexa/Wenrexa Interface UI KIT #4/PNG/Panel01.png").convert_alpha()
     inventory_panel_img = pygame.transform.scale(inventory_panel_img, (250, 180))
@@ -240,14 +244,39 @@ def load_game_world():
     class_def = CLASS_DEFS.get(class_name, {})
     stats = class_def.get('base_stats', {})
     player.max_health = stats.get('health', player.max_health)
+    player.base_max_health = player.max_health
     player.health = player.max_health
     player.attack = stats.get('attack', player.attack)
     player.defense = stats.get('defense', player.defense)
+    player.base_attack = player.attack
+    player.base_defense = player.defense
+    player.strength = stats.get('strength', 0)
+    player.constitution = stats.get('constitution', 0)
+    player.intelligence = stats.get('intelligence', 0)
+    player.dexterity = stats.get('dexterity', 0)
+    player.luck = stats.get('luck', 0)
+    player.crit = stats.get('crit', 0)
+    player.class_growth = class_def.get('growth', {})
+    sprite_path = class_def.get('sprite')
+    if sprite_path:
+        player.idle_image = pygame.image.load(sprite_path).convert_alpha()
+        player.walk_image_original = player.idle_image
+        player.image = player.idle_image
+    start_items = class_def.get('start_items', [])
+    for item_id in start_items:
+        item_def = ITEM_DEFS.get(item_id)
+        if item_def:
+            player.inventory[item_id] = {'item': item_def, 'qty': 1}
+            if item_def.type == 'weapon':
+                player.equipment['weapon'] = item_def
     player.character_class = class_name
     abilities = class_def.get('abilities', [])
     player.load_skills(abilities)
-    for i, skill in enumerate(player.skills):
-        hotbar.assign(i, skill)
+    for i, sk in enumerate(player.skills):
+        hotbar.assign(i, sk)
+    player.guild = current_user.get('guild')
+    status_ui = StatusUI(player)
+    skill_editor = SkillEditor()
     quest_manager = QuestManager()
     quest_manager.load_from_dict(current_user.get('quests', {}))
     all_sprites.add(player)
@@ -336,6 +365,10 @@ while True:
             shop_ui.handle_event(event, player)
             bank_ui.handle_event(event, player)
             crafting_ui.handle_event(event, player)
+            if status_ui:
+                status_ui.handle_event(event)
+            if skill_editor:
+                skill_editor.handle_event(event)
             if event.type == pygame.KEYDOWN and not chat_ui.active:
                 if event.key == pygame.K_F1 and current_user['is_admin']:
                     set_state('editor')
@@ -347,6 +380,10 @@ while True:
                     bank_ui.toggle()
                 elif event.key == pygame.K_c:
                     crafting_ui.toggle()
+                elif event.key == pygame.K_i and status_ui:
+                    status_ui.toggle()
+                elif event.key == pygame.K_F2 and current_user['is_admin'] and skill_editor:
+                    skill_editor.toggle()
                 elif event.key == pygame.K_t and other_players and net_client:
                     target = next(iter(other_players.keys()))
                     for item_id, data in list(player.inventory.items()):
@@ -361,11 +398,14 @@ while True:
                     if net_client:
                         net_client.send_attack("melee", player.direction, damage=player.attack)
                 elif event.key == pygame.K_f:
-                    proj = Projectile(player.rect.centerx, player.rect.centery, player.direction, wall_sprites, enemy_sprites, player.attack)
+                    dmg = player.attack
+                    if random.random() < player.crit / 100:
+                        dmg *= 2
+                    proj = Projectile(player.rect.centerx, player.rect.centery, player.direction, wall_sprites, enemy_sprites, dmg, owner=player)
                     all_sprites.add(proj)
                     projectile_sprites.add(proj)
                     if net_client:
-                        net_client.send_attack("projectile", player.direction, player.rect.centerx, player.rect.centery, player.attack)
+                        net_client.send_attack("projectile", player.direction, player.rect.centerx, player.rect.centery, dmg)
                 elif event.key == pygame.K_h:
                     area = {'x': player.rect.x - 16, 'y': player.rect.y - 16, 'w': 32, 'h': 32}
                     housing.claim_area(current_user['username'], area)
@@ -460,7 +500,7 @@ while True:
                         if msg.get('type') == 'melee':
                             other_players[uname].melee_attack(enemy_sprites)
                         elif msg.get('type') == 'projectile':
-                            proj = Projectile(msg.get('x'), msg.get('y'), msg.get('dir'), wall_sprites, enemy_sprites, msg.get('damage', 0))
+                            proj = Projectile(msg.get('x'), msg.get('y'), msg.get('dir'), wall_sprites, enemy_sprites, msg.get('damage', 0), owner=other_players[uname])
                             all_sprites.add(proj)
                             projectile_sprites.add(proj)
                 elif action == 'skill':
@@ -481,12 +521,19 @@ while True:
                 screen.blit(object_layer_surf, (-camera.camera.x, -camera.camera.y))
 
         for sprite in all_sprites:
-            screen.blit(sprite.image, camera.apply(sprite))
+            if isinstance(sprite, Player):
+                sprite.draw(screen, camera)
+            else:
+                screen.blit(sprite.image, camera.apply(sprite))
         display_hud(player)
         chat_ui.draw(screen)
         shop_ui.draw(screen)
         bank_ui.draw(screen)
         crafting_ui.draw(screen)
+        if status_ui:
+            status_ui.draw(screen)
+        if skill_editor:
+            skill_editor.draw(screen)
         weather.apply(screen)
 
         if game_state == 'options':

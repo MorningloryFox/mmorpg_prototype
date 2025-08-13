@@ -1,3 +1,6 @@
+import json
+
+
 class Skill:
     """Represents a combat or support ability with cooldown."""
 
@@ -23,7 +26,7 @@ class Skill:
             for enemy in enemies:
                 if user.rect.colliderect(enemy.rect.inflate(20, 20)):
                     dmg = max(0, self.power - getattr(enemy, 'defense', 0))
-                    enemy.take_damage(dmg)
+                    enemy.take_damage(dmg, user)
                     break
         elif self.kind == 'heal':
             user.health = min(user.max_health, user.health + self.power)
@@ -32,20 +35,13 @@ class Skill:
             user.active_buffs.append({'stat': self.stat, 'power': self.power, 'timer': self.duration})
 
 
-SKILL_DEFS = {
-    "Slash": {"kind": "damage", "power": 20, "cooldown": 30},
-    "Shield Block": {"kind": "buff", "stat": "defense", "power": 5, "duration": 300, "cooldown": 300},
-    "Arcane Strike": {"kind": "damage", "power": 25, "cooldown": 45},
-    "Mana Shield": {"kind": "buff", "stat": "defense", "power": 8, "duration": 300, "cooldown": 300},
-    "Arrow Shot": {"kind": "damage", "power": 15, "cooldown": 30},
-    "Multi Shot": {"kind": "damage", "power": 10, "cooldown": 45},
-    "Fireball": {"kind": "damage", "power": 30, "cooldown": 60},
-    "Ice Bolt": {"kind": "damage", "power": 25, "cooldown": 60},
-    "Inspiring Tune": {"kind": "buff", "stat": "attack", "power": 3, "duration": 300, "cooldown": 300},
-    "Distracting Chord": {"kind": "damage", "power": 5, "cooldown": 30},
-    "Heal": {"kind": "heal", "power": 25, "cooldown": 180},
-    "Blessing": {"kind": "buff", "stat": "defense", "power": 5, "duration": 300, "cooldown": 300},
-}
+with open('skills.json', 'r') as f:
+    SKILL_DEFS = json.load(f)
+
+
+def save_skills():
+    with open('skills.json', 'w') as f:
+        json.dump(SKILL_DEFS, f, indent=2)
 
 
 def create_skill(name):
