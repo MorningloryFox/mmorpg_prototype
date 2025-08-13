@@ -28,6 +28,7 @@ from ui import (
     DialogueEditor,
     DialogueUI,
     ProjectileEditor,
+    EmoticonEditor,
 )
 from ui.chat import Chat
 from ui.hotbar import Hotbar
@@ -104,6 +105,7 @@ item_editor = None
 dialogue_editor = None
 dialogue_ui = None
 projectile_editor = None
+emoticon_editor = None
 weather = Weather()
 ground_layer_surf = None
 object_layer_surf = None
@@ -192,6 +194,7 @@ def login():
                 item_editor,
                 dialogue_editor,
                 projectile_editor,
+                emoticon_editor,
             )
         other_players = {}
         for uname, pos in players.items():
@@ -218,7 +221,7 @@ def create_account():
         message = 'Username already exists.'
 
 def load_game_world():
-    global all_sprites, player, camera, wall_sprites, enemy_sprites, resource_sprites, projectile_sprites, inventory_panel_img, resource_icon_img, quest_manager, ground_layer_surf, object_layer_surf, status_ui, skill_editor, npc_editor, shop_editor, item_editor, dialogue_editor, dialogue_ui, projectile_editor
+    global all_sprites, player, camera, wall_sprites, enemy_sprites, resource_sprites, projectile_sprites, inventory_panel_img, resource_icon_img, quest_manager, ground_layer_surf, object_layer_surf, status_ui, skill_editor, npc_editor, shop_editor, item_editor, dialogue_editor, dialogue_ui, projectile_editor, emoticon_editor
 
     inventory_panel_img = pygame.image.load("data/Wenrexa/Wenrexa Interface UI KIT #4/PNG/Panel01.png").convert_alpha()
     inventory_panel_img = pygame.transform.scale(inventory_panel_img, (250, 180))
@@ -309,6 +312,7 @@ def load_game_world():
     shop_editor = ShopEditor()
     item_editor = ItemEditor()
     projectile_editor = ProjectileEditor()
+    emoticon_editor = EmoticonEditor(chat_ui)
     dialogue_editor = DialogueEditor()
     dialogue_ui = DialogueUI()
     quest_manager = QuestManager()
@@ -413,6 +417,8 @@ while True:
                 dialogue_editor.handle_event(event)
             if projectile_editor:
                 projectile_editor.handle_event(event)
+            if emoticon_editor:
+                emoticon_editor.handle_event(event)
             if dialogue_ui:
                 dialogue_ui.handle_event(event)
             if admin_ui:
@@ -643,6 +649,8 @@ while True:
             dialogue_editor.draw(screen)
         if projectile_editor:
             projectile_editor.draw(screen)
+        if emoticon_editor:
+            emoticon_editor.draw(screen)
         if dialogue_ui:
             dialogue_ui.draw(screen)
         if admin_ui:

@@ -13,6 +13,7 @@ class AdminPanel:
         item_editor=None,
         dialogue_editor=None,
         projectile_editor=None,
+        emoticon_editor=None,
     ):
         self.net_client = net_client
         self.player = player
@@ -21,9 +22,10 @@ class AdminPanel:
         self.item_editor = item_editor
         self.dialogue_editor = dialogue_editor
         self.projectile_editor = projectile_editor
+        self.emoticon_editor = emoticon_editor
         self.visible = False
         self.width = 300
-        self.height = 420
+        self.height = 470
         self.x = 20
         self.y = 100
         self.surface = pygame.Surface((self.width, self.height))
@@ -64,6 +66,10 @@ class AdminPanel:
         # Button to open Projectile editor
         self.buttons.append(
             Button(self.x + 10, self.y + 360, 130, 40, "Proj Editor", self._open_projectile_editor)
+        )
+        # Button to open Emoticon editor
+        self.buttons.append(
+            Button(self.x + 10, self.y + 410, 130, 40, "Emote Editor", self._open_emoticon_editor)
         )
 
     # --- Admin Commands ---
@@ -111,6 +117,10 @@ class AdminPanel:
     def _open_projectile_editor(self):
         if self.projectile_editor:
             self.projectile_editor.toggle()
+
+    def _open_emoticon_editor(self):
+        if self.emoticon_editor:
+            self.emoticon_editor.toggle()
 
     # --- UI Handling ---
     def handle_event(self, event):

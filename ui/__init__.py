@@ -12,6 +12,7 @@ from .item_editor import ItemEditor
 from .dialogue_editor import DialogueEditor
 from .dialogue import DialogueUI
 from .projectile_editor import ProjectileEditor
+from .emoticon_editor import EmoticonEditor
 from .admin import AdminPanel
 
 __all__ = [
@@ -31,5 +32,6 @@ __all__ = [
     "DialogueEditor",
     "DialogueUI",
     "ProjectileEditor",
+    "EmoticonEditor",
     "AdminPanel",
 ]
