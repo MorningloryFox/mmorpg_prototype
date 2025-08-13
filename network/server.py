@@ -36,6 +36,8 @@ class Server:
                 self._handle_position(username, data, exclude=conn)
             elif action == "chat" and username:
                 self.broadcast({"action": "chat", "username": username, "text": data.get("text", "")})
+            elif action == "trade" and username:
+                self._handle_trade(username, data)
         # client disconnected
         if username:
             with self.lock:
@@ -79,6 +81,16 @@ class Server:
             {"action": "pos", "username": username, "x": x, "y": y},
             exclude=exclude,
         )
+
+    def _handle_trade(self, username: str, data: dict) -> None:
+        message = {
+            "action": "trade",
+            "from": username,
+            "to": data.get("target"),
+            "item_id": data.get("item_id"),
+            "qty": data.get("qty", 1),
+        }
+        self.broadcast(message)
 
     def broadcast(self, message: dict, exclude: socket.socket | None = None) -> None:
         data = json.dumps(message).encode() + b"\n"

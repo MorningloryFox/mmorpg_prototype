@@ -24,6 +24,7 @@ class Player(pygame.sprite.Sprite):
         self.required_xp = 100
         self.inventory = {}
         self.max_inventory_slots = 10
+        self.gold = 0
         self.character_class = None
         self.party = None  # placeholder for party system
         self.quests = {}

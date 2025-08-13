@@ -8,6 +8,7 @@ from settings import *
 from player import Player
 from resource import Resource
 from quest import QuestManager, Quest
+from item import ITEM_DEFS
 import events
 
 with open('classes.json', 'r') as f:
@@ -19,6 +20,10 @@ from entities.projectile import Projectile
 from ui import Button, InputBox, Label
 from ui.chat import Chat
 from ui.hotbar import Hotbar
+from shop import Shop
+from bank import Bank
+from ui.shop import ShopUI
+from ui.bank import BankUI
 from editor import Editor
 import database as db
 from network.client import NetworkClient
@@ -39,6 +44,10 @@ other_players = {}
 chat_ui = Chat()
 hotbar = Hotbar()
 quest_manager = QuestManager()
+shop = Shop()
+bank = Bank()
+shop_ui = ShopUI(shop)
+bank_ui = BankUI(bank)
 
 # --- Load UI Assets ---
 login_panel_img = pygame.image.load("data/Wenrexa/Wenrexa Interface UI KIT #4/PNG/Panel02.png").convert_alpha()
@@ -230,6 +239,8 @@ def display_hud(player):
     screen.blit(level_text, (10, 80))
     xp_text = font.render(f"XP: {player.xp}/{player.required_xp}", True, WHITE)
     screen.blit(xp_text, (10, 110))
+    gold_text = font.render(f"Gold: {player.gold}", True, WHITE)
+    screen.blit(gold_text, (10, 140))
 
     # Inventory
     display_inventory(player.inventory)
@@ -255,11 +266,26 @@ while True:
         elif game_state == 'playing':
             chat_ui.handle_event(event, lambda text: send_chat_message(text))
             hotbar.handle_event(event)
+            shop_ui.handle_event(event, player)
+            bank_ui.handle_event(event, player)
             if event.type == pygame.KEYDOWN and not chat_ui.active:
                 if event.key == pygame.K_F1 and current_user['is_admin']:
                     set_state('editor')
                 elif event.key == pygame.K_ESCAPE:
                     set_state('options')
+                elif event.key == pygame.K_p:
+                    shop_ui.toggle()
+                elif event.key == pygame.K_b:
+                    bank_ui.toggle()
+                elif event.key == pygame.K_t and other_players and net_client:
+                    target = next(iter(other_players.keys()))
+                    for item_id, data in list(player.inventory.items()):
+                        if data['qty'] > 0:
+                            net_client.send_trade(target, item_id, 1)
+                            data['qty'] -= 1
+                            if data['qty'] <= 0:
+                                del player.inventory[item_id]
+                            break
                 elif event.key == pygame.K_SPACE:
                     player.melee_attack(enemy_sprites)
                 elif event.key == pygame.K_f:
@@ -338,11 +364,21 @@ while True:
                         del other_players[uname]
                 elif action == 'chat':
                     chat_ui.add_message(f"{msg.get('username')}: {msg.get('text', '')}")
+                elif action == 'trade':
+                    if msg.get('to') == current_user['username']:
+                        item_id = msg.get('item_id')
+                        qty = msg.get('qty', 1)
+                        item_def = ITEM_DEFS.get(item_id)
+                        if item_def:
+                            player.inventory.setdefault(item_id, {'item': item_def, 'qty': 0})
+                            player.inventory[item_id]['qty'] += qty
 
         for sprite in all_sprites:
             screen.blit(sprite.image, camera.apply(sprite))
         display_hud(player)
         chat_ui.draw(screen)
+        shop_ui.draw(screen)
+        bank_ui.draw(screen)
 
         if game_state == 'options':
             screen.blit(login_panel_img, (panel_x, panel_y))

@@ -46,6 +46,9 @@ class NetworkClient:
         """Send a chat message to the server."""
         self.send({"action": "chat", "text": text})
 
+    def send_trade(self, target: str, item_id: str, qty: int = 1) -> None:
+        self.send({"action": "trade", "target": target, "item_id": item_id, "qty": qty})
+
     def get_messages(self) -> List[dict]:
         messages = []
         while not self.incoming.empty():
